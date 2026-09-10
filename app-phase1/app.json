@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "HelpMeSpeak",
+    "slug": "helpmespeak",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "helpmespeak",
+    "splash": {
+      "backgroundColor": "#4A90D9",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.helpmespeak.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "HelpMeSpeak needs the microphone so caregivers can record how each word sounds.",
+        "NSPhotoLibraryUsageDescription": "HelpMeSpeak needs photo access so caregivers can add familiar pictures for each word.",
+        "NSCameraUsageDescription": "HelpMeSpeak needs the camera so caregivers can take a photo for a word."
+      }
+    },
+    "android": {
+      "package": "com.helpmespeak.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#4A90D9"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "HelpMeSpeak needs photo access so caregivers can add familiar pictures for each word.",
+          "cameraPermission": "HelpMeSpeak needs the camera so caregivers can take a photo for a word."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "HelpMeSpeak needs the microphone so caregivers can record how each word sounds."
+        }
+      ]
+    ]
+  }
+}
