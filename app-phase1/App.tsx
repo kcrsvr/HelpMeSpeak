@@ -13,11 +13,13 @@ import { SplashScreen } from "./src/screens/SplashScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { ChildHomeScreen } from "./src/screens/ChildHomeScreen";
 import { CategoryScreen } from "./src/screens/CategoryScreen";
+import { FavoritesScreen } from "./src/screens/FavoritesScreen";
 import { WordExperienceScreen } from "./src/screens/WordExperienceScreen";
 import { PinGateScreen } from "./src/screens/PinGateScreen";
 import { CaregiverHomeScreen } from "./src/screens/CaregiverHomeScreen";
 import { WordWizardScreen } from "./src/screens/WordWizardScreen";
 import { ManageCategoriesScreen } from "./src/screens/ManageCategoriesScreen";
+import { CategoryDetailScreen } from "./src/screens/CategoryDetailScreen";
 import { ManageProfilesScreen } from "./src/screens/ManageProfilesScreen";
 import { ProfileSettingsScreen } from "./src/screens/ProfileSettingsScreen";
 
@@ -75,6 +77,7 @@ function Navigation() {
           component={CategoryScreen}
           options={{ animation: "slide_from_right" }}
         />
+        <Stack.Screen name="Favorites" component={FavoritesScreen} />
         <Stack.Screen
           name="WordExperience"
           component={WordExperienceScreen}
@@ -96,6 +99,11 @@ function Navigation() {
         <Stack.Screen
           name="ManageCategories"
           component={ManageCategoriesScreen}
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="CategoryDetail"
+          component={CategoryDetailScreen}
           options={{ animation: "slide_from_right" }}
         />
         <Stack.Screen

@@ -28,6 +28,7 @@ const CG = { bg: "#0F0F1A", card: "#1A1A2E", accent: "#BB86FC", cardActive: "#25
 
 export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard">) {
   const editingId = route.params?.wordId;
+  const preselectedCategoryId = route.params?.categoryId;
   const { activeProfile } = useApp();
 
   const [step, setStep] = useState(0); // 0..4
@@ -49,7 +50,13 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
     (async () => {
       const cats = await CategoryRepo.listForProfile(activeProfile.id);
       setCategories(cats);
-      if (!editingId && cats[0]) setCategoryId(cats[0].id);
+      if (!editingId) {
+        // Preselect the category we came from, if any; else the first.
+        const preferred = preselectedCategoryId
+          ? cats.find((c) => c.id === preselectedCategoryId)
+          : undefined;
+        setCategoryId(preferred?.id ?? cats[0]?.id ?? null);
+      }
       if (editingId) {
         const w = await WordRepo.get(editingId);
         if (w) {
@@ -62,16 +69,36 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
         }
       }
     })();
-  }, [activeProfile, editingId]);
+  }, [activeProfile, editingId, preselectedCategoryId]);
 
   // ---- photo ----
+  // Choose an existing photo from the device's library.
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("Permission needed", "Please allow photo access to add a picture.");
+      Alert.alert("Permission needed", "Please allow photo access to choose a picture.");
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!res.canceled && res.assets[0]) {
+      const stored = await persistPhoto(res.assets[0].uri);
+      setPhotoUri(stored);
+    }
+  };
+
+  // Open the camera and take a new photo right now.
+  const takePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Please allow camera access to take a picture.");
+      return;
+    }
+    const res = await ImagePicker.launchCameraAsync({
       mediaTypes: ["images"],
       quality: 0.7,
       allowsEditing: true,
@@ -209,17 +236,42 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
         {step === 0 && (
           <>
             <Text style={styles.stepTitle}>Add a picture</Text>
-            <Text style={styles.stepDesc}>Pick a familiar photo, or use an emoji for now.</Text>
-            <Pressable style={styles.uploadArea} onPress={pickPhoto} accessibilityRole="button" accessibilityLabel="Choose photo">
+            <Text style={styles.stepDesc}>
+              Choose a photo from the library or take one with the camera. Or use an emoji for now.
+            </Text>
+            <View style={styles.uploadArea}>
               {photoUri ? (
                 <Image source={{ uri: photoUri }} style={styles.uploadPreview} />
               ) : (
                 <>
                   <Text style={{ fontSize: 48 }}>{emoji}</Text>
-                  <Text style={styles.uploadHint}>Tap to choose a photo</Text>
+                  <Text style={styles.uploadHint}>No photo yet</Text>
                 </>
               )}
-            </Pressable>
+            </View>
+
+            {/* Two ways to add a photo */}
+            <View style={styles.photoBtnRow}>
+              <Pressable
+                style={styles.photoBtn}
+                onPress={pickPhoto}
+                accessibilityRole="button"
+                accessibilityLabel="Choose a photo from the library"
+              >
+                <Text style={styles.photoBtnIcon}>🖼️</Text>
+                <Text style={styles.photoBtnLabel}>Choose Photo</Text>
+              </Pressable>
+              <Pressable
+                style={styles.photoBtn}
+                onPress={takePhoto}
+                accessibilityRole="button"
+                accessibilityLabel="Open camera and take a picture"
+              >
+                <Text style={styles.photoBtnIcon}>📷</Text>
+                <Text style={styles.photoBtnLabel}>Take Photo</Text>
+              </Pressable>
+            </View>
+
             <Text style={styles.fieldLabel}>Or pick an emoji</Text>
             <TextInput
               style={styles.input}
@@ -424,6 +476,21 @@ const styles = StyleSheet.create({
   },
   uploadPreview: { width: "100%", height: "100%", borderRadius: 18 },
   uploadHint: { color: "rgba(255,255,255,0.6)", fontWeight: "700" },
+  photoBtnRow: { flexDirection: "row", gap: 12, marginTop: 14 },
+  photoBtn: {
+    flex: 1,
+    backgroundColor: CG.card,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "rgba(187,134,252,0.35)",
+    minHeight: 88,
+  },
+  photoBtnIcon: { fontSize: 30 },
+  photoBtnLabel: { color: "#FFF", fontWeight: "800", fontSize: 14 },
   fieldLabel: { color: "rgba(255,255,255,0.6)", fontWeight: "700", marginTop: 12 },
   input: {
     backgroundColor: CG.card,

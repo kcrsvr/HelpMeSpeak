@@ -35,6 +35,8 @@ export interface Category {
   profileId: string;
   name: string;
   emoji: string;
+  /** Local filesystem URI to a chosen photo; when set it is shown instead of the emoji. */
+  imageUri: string | null;
   color: string;
   order: number;
   isBuiltIn: boolean;

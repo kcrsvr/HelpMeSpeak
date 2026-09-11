@@ -68,7 +68,7 @@ export function CaregiverHomeScreen({ navigation }: ScreenProps<"CaregiverHome">
           />
           <ActionButton
             icon="📂"
-            label="Manage Categories"
+            label="Manage Words/Categories"
             onPress={() => navigation.navigate("ManageCategories")}
           />
           <ActionButton

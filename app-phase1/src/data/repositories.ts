@@ -45,6 +45,7 @@ function mapCategory(r: any): Category {
     profileId: r.profileId,
     name: r.name,
     emoji: r.emoji,
+    imageUri: r.imageUri ?? null,
     color: r.color,
     order: r.order,
     isBuiltIn: toBool(r.isBuiltIn),
@@ -264,6 +265,7 @@ export const CategoryRepo = {
     name: string;
     emoji: string;
     color: string;
+    imageUri?: string | null;
   }): Promise<Category> {
     const db = await getDb();
     const ts = now();
@@ -276,6 +278,7 @@ export const CategoryRepo = {
       profileId: input.profileId,
       name: input.name.trim(),
       emoji: input.emoji || "📁",
+      imageUri: input.imageUri ?? null,
       color: input.color || "#4A90D9",
       order: countRow?.c ?? 0,
       isBuiltIn: false,
@@ -283,9 +286,19 @@ export const CategoryRepo = {
       updatedAt: ts,
     };
     await db.runAsync(
-      `INSERT INTO categories (id, profileId, name, emoji, color, "order", isBuiltIn, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-      [cat.id, cat.profileId, cat.name, cat.emoji, cat.color, cat.order, cat.createdAt, cat.updatedAt]
+      `INSERT INTO categories (id, profileId, name, emoji, imageUri, color, "order", isBuiltIn, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+      [
+        cat.id,
+        cat.profileId,
+        cat.name,
+        cat.emoji,
+        cat.imageUri,
+        cat.color,
+        cat.order,
+        cat.createdAt,
+        cat.updatedAt,
+      ]
     );
     return cat;
   },
@@ -296,8 +309,8 @@ export const CategoryRepo = {
     if (!existing) return;
     const next = { ...existing, ...patch, updatedAt: now() };
     await db.runAsync(
-      `UPDATE categories SET name = ?, emoji = ?, color = ?, "order" = ?, updatedAt = ? WHERE id = ?`,
-      [next.name, next.emoji, next.color, next.order, next.updatedAt, id]
+      `UPDATE categories SET name = ?, emoji = ?, imageUri = ?, color = ?, "order" = ?, updatedAt = ? WHERE id = ?`,
+      [next.name, next.emoji, next.imageUri, next.color, next.order, next.updatedAt, id]
     );
   },
 

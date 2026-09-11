@@ -109,7 +109,11 @@ export function ChildHomeScreen({ navigation }: ScreenProps<"ChildHome">) {
                 pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 },
               ]}
             >
-              <Text style={styles.categoryEmoji}>{c.emoji}</Text>
+              {c.imageUri ? (
+                <Image source={{ uri: c.imageUri }} style={styles.categoryImg} />
+              ) : (
+                <Text style={styles.categoryEmoji}>{c.emoji}</Text>
+              )}
               <Text style={styles.categoryLabel}>{c.name}</Text>
               <Text style={styles.categoryCount}>{counts[c.id] ?? 0} words</Text>
             </Pressable>
@@ -124,9 +128,7 @@ export function ChildHomeScreen({ navigation }: ScreenProps<"ChildHome">) {
           <NavTab
             icon="⭐"
             label="Favorites"
-            onPress={() =>
-              featured[0] && navigation.navigate("WordExperience", { wordId: featured[0].id })
-            }
+            onPress={() => navigation.navigate("Favorites")}
             color={theme.navActive}
             textLight={theme.textLight}
           />
@@ -234,6 +236,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   categoryEmoji: { fontSize: 36 },
+  categoryImg: { width: 48, height: 48, borderRadius: 12 },
   categoryLabel: { fontSize: 15, fontWeight: "800", color: "#FFF", textAlign: "center" },
   categoryCount: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.8)" },
   nav: {

@@ -15,33 +15,35 @@ import * as ImagePicker from "expo-image-picker";
 import { useApp } from "../state/AppContext";
 import { CategoryRepo, WordRepo } from "../data/repositories";
 import { persistPhoto, deleteMedia } from "../data/media";
-import { Category } from "../data/types";
+import { Category, Word } from "../data/types";
 import { ScreenProps } from "../navigation/types";
 
 const CG = { bg: "#0F0F1A", card: "#1A1A2E", accent: "#BB86FC" };
+const COLUMNS = 2;
 
-export function ManageCategoriesScreen({ navigation }: ScreenProps<"ManageCategories">) {
+export function CategoryDetailScreen({ route, navigation }: ScreenProps<"CategoryDetail">) {
+  const { categoryId } = route.params;
   const { activeProfile } = useApp();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
 
-  // New-category form state
-  const [newName, setNewName] = useState("");
-  const [newEmoji, setNewEmoji] = useState("📁");
-  const [newImageUri, setNewImageUri] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [category, setCategory] = useState<Category | null>(null);
+  const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState("📁");
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [words, setWords] = useState<Word[]>([]);
 
   const load = useCallback(async () => {
-    if (!activeProfile) return;
-    const [cats, words] = await Promise.all([
-      CategoryRepo.listForProfile(activeProfile.id),
-      WordRepo.listForProfile(activeProfile.id),
-    ]);
-    setCategories(cats);
-    const c: Record<string, number> = {};
-    for (const w of words) c[w.categoryId] = (c[w.categoryId] ?? 0) + 1;
-    setCounts(c);
-  }, [activeProfile]);
+    const cat = await CategoryRepo.get(categoryId);
+    setCategory(cat);
+    if (cat) {
+      setName(cat.name);
+      setEmoji(cat.emoji);
+      setImageUri(cat.imageUri);
+    }
+    const ws = await WordRepo.listForCategory(categoryId);
+    // Alphabetical by word (case-insensitive).
+    ws.sort((a, b) => a.word.toLowerCase().localeCompare(b.word.toLowerCase()));
+    setWords(ws);
+  }, [categoryId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,7 +51,30 @@ export function ManageCategoriesScreen({ navigation }: ScreenProps<"ManageCatego
     }, [load])
   );
 
-  // ---- picture for the new category ----
+  // ---- category edits (persisted on blur / change) ----
+  const saveName = async () => {
+    const trimmed = name.trim();
+    if (!category || !trimmed || trimmed === category.name) return;
+    await CategoryRepo.update(category.id, { name: trimmed });
+    load();
+  };
+
+  const saveEmoji = async (next: string) => {
+    const e = next.slice(0, 2) || "📁";
+    setEmoji(e);
+    if (category && !imageUri) {
+      await CategoryRepo.update(category.id, { emoji: e });
+    }
+  };
+
+  const setCategoryImage = async (uri: string) => {
+    if (!category) return;
+    // remove the previous image file if we're replacing it
+    if (imageUri && imageUri !== uri) await deleteMedia(imageUri);
+    setImageUri(uri);
+    await CategoryRepo.update(category.id, { imageUri: uri });
+  };
+
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -63,7 +88,7 @@ export function ManageCategoriesScreen({ navigation }: ScreenProps<"ManageCatego
       aspect: [1, 1],
     });
     if (!res.canceled && res.assets[0]) {
-      setNewImageUri(await persistPhoto(res.assets[0].uri));
+      setCategoryImage(await persistPhoto(res.assets[0].uri));
     }
   };
 
@@ -80,57 +105,26 @@ export function ManageCategoriesScreen({ navigation }: ScreenProps<"ManageCatego
       aspect: [1, 1],
     });
     if (!res.canceled && res.assets[0]) {
-      setNewImageUri(await persistPhoto(res.assets[0].uri));
+      setCategoryImage(await persistPhoto(res.assets[0].uri));
     }
   };
 
   const clearImage = async () => {
-    await deleteMedia(newImageUri);
-    setNewImageUri(null);
+    if (!category) return;
+    await deleteMedia(imageUri);
+    setImageUri(null);
+    await CategoryRepo.update(category.id, { imageUri: null });
   };
 
-  const addCategory = async () => {
-    if (!activeProfile || !newName.trim() || saving) return;
-    setSaving(true);
-    try {
-      await CategoryRepo.create({
-        profileId: activeProfile.id,
-        name: newName.trim(),
-        emoji: newEmoji || "📁",
-        imageUri: newImageUri,
-        color: "#BB86FC",
-      });
-      // reset form
-      setNewName("");
-      setNewEmoji("📁");
-      setNewImageUri(null);
-      load();
-    } finally {
-      setSaving(false);
-    }
-  };
+  const addWord = () =>
+    navigation.navigate("WordWizard", { categoryId });
 
-  const removeCategory = (c: Category) => {
-    const n = counts[c.id] ?? 0;
-    Alert.alert(
-      `Delete "${c.name}"?`,
-      n > 0
-        ? `This will also delete ${n} word${n === 1 ? "" : "s"} in it. This cannot be undone.`
-        : "This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            await deleteMedia(c.imageUri);
-            await CategoryRepo.delete(c.id);
-            load();
-          },
-        },
-      ]
-    );
-  };
+  const editWord = (w: Word) =>
+    navigation.navigate("WordWizard", { wordId: w.id });
+
+  // grid rows
+  const rows: Word[][] = [];
+  for (let i = 0; i < words.length; i += COLUMNS) rows.push(words.slice(i, i + COLUMNS));
 
   return (
     <View style={[styles.container, { backgroundColor: CG.bg }]}>
@@ -139,23 +133,20 @@ export function ManageCategoriesScreen({ navigation }: ScreenProps<"ManageCatego
           <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back">
             <Text style={styles.headerBtn}>← Back</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>Words / Categories</Text>
+          <Text style={styles.headerTitle}>Edit Category</Text>
           <View style={{ width: 60 }} />
         </View>
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.body}>
-        {/* ---- New category form ---- */}
-        <View style={styles.addCard}>
-          <Text style={styles.addTitle}>NEW CATEGORY</Text>
-
-          {/* 1) picture or emoji */}
+        {/* ---- editable category header ---- */}
+        <View style={styles.editCard}>
           <View style={styles.previewRow}>
             <View style={styles.preview}>
-              {newImageUri ? (
-                <Image source={{ uri: newImageUri }} style={styles.previewImg} />
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={styles.previewImg} />
               ) : (
-                <Text style={styles.previewEmoji}>{newEmoji}</Text>
+                <Text style={styles.previewEmoji}>{emoji}</Text>
               )}
             </View>
             <View style={styles.pickBtns}>
@@ -168,76 +159,75 @@ export function ManageCategoriesScreen({ navigation }: ScreenProps<"ManageCatego
             </View>
           </View>
 
-          {newImageUri ? (
+          {imageUri ? (
             <Pressable onPress={clearImage} accessibilityRole="button" accessibilityLabel="Remove picture">
               <Text style={styles.removeLink}>Remove picture (use emoji)</Text>
             </Pressable>
           ) : (
             <View style={styles.emojiRow}>
-              <Text style={styles.emojiHint}>Or use an emoji</Text>
+              <Text style={styles.emojiHint}>Emoji</Text>
               <TextInput
                 style={styles.emojiInput}
-                value={newEmoji}
-                onChangeText={(t) => setNewEmoji(t.slice(0, 2) || "📁")}
+                value={emoji}
+                onChangeText={saveEmoji}
                 accessibilityLabel="Category emoji"
               />
             </View>
           )}
 
-          {/* 2) name */}
           <TextInput
             style={styles.nameInput}
-            value={newName}
-            onChangeText={setNewName}
+            value={name}
+            onChangeText={setName}
+            onBlur={saveName}
+            onSubmitEditing={saveName}
             placeholder="Category name"
             placeholderTextColor="#666"
             maxLength={20}
+            returnKeyType="done"
             accessibilityLabel="Category name"
           />
+        </View>
 
-          {/* 3) add */}
-          <Pressable
-            style={[styles.addBtn, (!newName.trim() || saving) && { opacity: 0.5 }]}
-            disabled={!newName.trim() || saving}
-            onPress={addCategory}
-            accessibilityRole="button"
-            accessibilityLabel="Add category"
-          >
-            <Text style={styles.addBtnText}>{saving ? "Adding…" : "Add Category"}</Text>
+        {/* ---- words in this category ---- */}
+        <View style={styles.wordsHeaderRow}>
+          <Text style={styles.wordsHeader}>WORDS ({words.length})</Text>
+          <Pressable style={styles.addWordBtn} onPress={addWord} accessibilityRole="button" accessibilityLabel="Add a word to this category">
+            <Text style={styles.addWordText}>＋ Add Word</Text>
           </Pressable>
         </View>
 
-        {/* ---- existing categories ---- */}
-        {categories.map((c) => (
-          <Pressable
-            key={c.id}
-            style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
-            onPress={() => navigation.navigate("CategoryDetail", { categoryId: c.id })}
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${c.name}`}
-          >
-            {c.imageUri ? (
-              <Image source={{ uri: c.imageUri }} style={styles.rowImg} />
-            ) : (
-              <Text style={styles.rowEmoji}>{c.emoji}</Text>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowName}>{c.name}</Text>
-              <Text style={styles.rowSub}>
-                {counts[c.id] ?? 0} words{c.isBuiltIn ? " • built-in" : ""}
-              </Text>
+        {words.length === 0 ? (
+          <Text style={styles.empty}>No words yet. Tap “Add Word” to create one.</Text>
+        ) : (
+          rows.map((row, ri) => (
+            <View key={ri} style={styles.row}>
+              {row.map((w) => (
+                <Pressable
+                  key={w.id}
+                  style={styles.wordTile}
+                  onPress={() => editWord(w)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Edit ${w.word}`}
+                >
+                  {w.photoUri ? (
+                    <Image source={{ uri: w.photoUri }} style={styles.wordImg} />
+                  ) : (
+                    <Text style={styles.wordEmoji}>{w.emoji}</Text>
+                  )}
+                  <Text style={styles.wordLabel} numberOfLines={1}>
+                    {w.word}
+                  </Text>
+                  <Text style={styles.wordEdit}>Tap to edit ✎</Text>
+                </Pressable>
+              ))}
+              {row.length < COLUMNS &&
+                Array.from({ length: COLUMNS - row.length }).map((_, i) => (
+                  <View key={`pad-${i}`} style={{ flex: 1 }} />
+                ))}
             </View>
-            <Text style={styles.chevron}>›</Text>
-            <Pressable
-              onPress={() => removeCategory(c)}
-              accessibilityRole="button"
-              accessibilityLabel={`Delete ${c.name}`}
-              hitSlop={8}
-            >
-              <Text style={styles.delete}>🗑</Text>
-            </Pressable>
-          </Pressable>
-        ))}
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -255,11 +245,9 @@ const styles = StyleSheet.create({
   },
   headerBtn: { color: "#FFF", fontWeight: "700", fontSize: 15, minWidth: 60 },
   headerTitle: { color: "#FFF", fontSize: 17, fontWeight: "900" },
-  body: { padding: 20, gap: 12 },
+  body: { padding: 20, gap: 14 },
 
-  addCard: { backgroundColor: CG.card, borderRadius: 16, padding: 16, gap: 14, marginBottom: 8 },
-  addTitle: { color: CG.accent, fontWeight: "800", fontSize: 13, letterSpacing: 1 },
-
+  editCard: { backgroundColor: CG.card, borderRadius: 16, padding: 16, gap: 14 },
   previewRow: { flexDirection: "row", gap: 14, alignItems: "center" },
   preview: {
     width: 72,
@@ -285,7 +273,6 @@ const styles = StyleSheet.create({
   },
   pickBtnText: { color: "#FFF", fontWeight: "800", fontSize: 14 },
   removeLink: { color: "#E57373", fontWeight: "700", fontSize: 13 },
-
   emojiRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   emojiHint: { color: "rgba(255,255,255,0.6)", fontWeight: "700" },
   emojiInput: {
@@ -297,7 +284,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: "#FFF",
   },
-
   nameInput: {
     height: 48,
     borderRadius: 12,
@@ -307,28 +293,40 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 16,
   },
-  addBtn: {
-    backgroundColor: CG.accent,
-    borderRadius: 12,
-    height: 52,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addBtnText: { color: CG.bg, fontWeight: "900", fontSize: 16 },
 
-  row: {
+  wordsHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  wordsHeader: { color: CG.accent, fontWeight: "800", fontSize: 13, letterSpacing: 1 },
+  addWordBtn: {
+    backgroundColor: CG.accent,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 40,
+    justifyContent: "center",
+  },
+  addWordText: { color: CG.bg, fontWeight: "800", fontSize: 13 },
+  empty: { color: "rgba(255,255,255,0.5)", fontWeight: "600", textAlign: "center", marginTop: 20 },
+
+  row: { flexDirection: "row", gap: 14 },
+  wordTile: {
+    flex: 1,
     backgroundColor: CG.card,
     borderRadius: 16,
-    padding: 16,
-    minHeight: 60,
+    padding: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 130,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
-  rowEmoji: { fontSize: 28, width: 44, textAlign: "center" },
-  rowImg: { width: 44, height: 44, borderRadius: 10 },
-  rowName: { color: "#FFF", fontWeight: "800", fontSize: 16 },
-  rowSub: { color: "rgba(255,255,255,0.5)", fontWeight: "600", fontSize: 12, marginTop: 2 },
-  chevron: { color: "rgba(255,255,255,0.4)", fontSize: 24, fontWeight: "700", paddingHorizontal: 4 },
-  delete: { fontSize: 22, padding: 4 },
+  wordImg: { width: 56, height: 56, borderRadius: 12 },
+  wordEmoji: { fontSize: 44 },
+  wordLabel: { color: "#FFF", fontWeight: "800", fontSize: 15, textAlign: "center" },
+  wordEdit: { color: CG.accent, fontWeight: "700", fontSize: 11 },
 });

@@ -43,6 +43,7 @@ export async function initSchema(): Promise<void> {
       profileId  TEXT NOT NULL,
       name       TEXT NOT NULL,
       emoji      TEXT NOT NULL DEFAULT '📁',
+      imageUri   TEXT,
       color      TEXT NOT NULL DEFAULT '#4A90D9',
       "order"    INTEGER NOT NULL DEFAULT 0,
       isBuiltIn  INTEGER NOT NULL DEFAULT 0,
@@ -80,4 +81,29 @@ export async function initSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_words_profile ON words(profileId);
     CREATE INDEX IF NOT EXISTS idx_words_category ON words(categoryId);
   `);
+
+  await runMigrations(db);
+}
+
+/**
+ * Additive migrations for databases created by earlier app versions.
+ * Each is guarded so it is safe to run on every launch.
+ */
+async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+  await addColumnIfMissing(db, "categories", "imageUri", "TEXT");
+}
+
+async function addColumnIfMissing(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+  definition: string
+): Promise<void> {
+  const cols = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(${table})`
+  );
+  const exists = cols.some((c) => c.name === column);
+  if (!exists) {
+    await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }
