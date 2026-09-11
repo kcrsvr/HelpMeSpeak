@@ -4,7 +4,10 @@
 // Phase 1 storage plan). Returns a stable file:// URI to store in SQLite.
 // ============================================================
 
-import * as FileSystem from "expo-file-system";
+// SDK 57 introduced a new File/Directory API; the classic function-based API
+// (documentDirectory, copyAsync, etc.) lives under the /legacy entry point and
+// is fully supported. We use it here to keep media handling simple and stable.
+import * as FileSystem from "expo-file-system/legacy";
 import { newId } from "../utils/id";
 
 const MEDIA_DIR = `${FileSystem.documentDirectory}media/`;

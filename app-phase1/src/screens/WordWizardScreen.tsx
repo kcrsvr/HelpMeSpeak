@@ -11,7 +11,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { Audio } from "expo-av";
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  createAudioPlayer,
+} from "expo-audio";
 import { useApp } from "../state/AppContext";
 import { CategoryRepo, WordRepo } from "../data/repositories";
 import { persistAudio, persistPhoto, deleteMedia } from "../data/media";
@@ -34,7 +40,7 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
   const [isFeatured, setIsFeatured] = useState(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
 
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -66,7 +72,7 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       quality: 0.7,
       allowsEditing: true,
       aspect: [1, 1],
@@ -77,19 +83,17 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
     }
   };
 
-  // ---- audio ----
+  // ---- audio (expo-audio) ----
   const startRecording = async () => {
     try {
-      const perm = await Audio.requestPermissionsAsync();
+      const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
         Alert.alert("Permission needed", "Please allow microphone access to record.");
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording: rec } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(rec);
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
       setIsRecording(true);
     } catch (e) {
       Alert.alert("Recording failed", "Could not start recording.");
@@ -97,11 +101,11 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
   };
 
   const stopRecording = async () => {
-    if (!recording) return;
+    if (!isRecording) return;
     setIsRecording(false);
     try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
+      await recorder.stop();
+      const uri = recorder.uri;
       if (uri) {
         const stored = await persistAudio(uri);
         setAudioUri(stored);
@@ -109,17 +113,24 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
     } catch {
       // ignore
     }
-    setRecording(null);
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+    try {
+      await setAudioModeAsync({ allowsRecording: false });
+    } catch {
+      // ignore
+    }
   };
 
   const playRecording = async () => {
     if (!audioUri) return;
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri: audioUri }, { shouldPlay: true });
-      sound.setOnPlaybackStatusUpdate((s) => {
-        if (s.isLoaded && s.didJustFinish) sound.unloadAsync();
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const player = createAudioPlayer({ uri: audioUri });
+      player.play();
+      const sub = player.addListener("playbackStatusUpdate", (status) => {
+        if (status.didJustFinish || status.error) {
+          sub?.remove?.();
+          player.remove();
+        }
       });
     } catch {
       // ignore

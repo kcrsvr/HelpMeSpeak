@@ -151,3 +151,6 @@ web-build/
 # OS cruft
 .DS_Store
 .env*.local
+
+# Local scratch notes (may contain credentials) — never commit
+notes.md

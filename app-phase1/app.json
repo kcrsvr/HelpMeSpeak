@@ -10,7 +10,9 @@
       "backgroundColor": "#4A90D9",
       "resizeMode": "contain"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.helpmespeak.app",
@@ -24,7 +26,13 @@
       "package": "com.helpmespeak.app",
       "adaptiveIcon": {
         "backgroundColor": "#4A90D9"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "plugins": [
       [
@@ -35,11 +43,19 @@
         }
       ],
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": "HelpMeSpeak needs the microphone so caregivers can record how each word sounds."
         }
-      ]
-    ]
+      ],
+      "expo-sqlite",
+      "expo-status-bar"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "85b5003a-d3fc-4f00-9440-f8f54db35a17"
+      }
+    },
+    "owner": "sreeradhs-team"
   }
 }

@@ -3,12 +3,31 @@
 // otherwise falls back to on-device TTS (when the profile allows it).
 // Returns roughly when playback finishes so the word experience can
 // sequence the spelling animation after the audio.
+//
+// SDK 57: expo-av was removed. Playback uses expo-audio's imperative
+// createAudioPlayer(); speech uses expo-speech (unchanged).
 // ============================================================
 
-import { Audio } from "expo-av";
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 import * as Speech from "expo-speech";
 
-let currentSound: Audio.Sound | null = null;
+let currentPlayer: AudioPlayer | null = null;
+
+async function stopCurrent(): Promise<void> {
+  if (currentPlayer) {
+    try {
+      currentPlayer.remove();
+    } catch {
+      // ignore
+    }
+    currentPlayer = null;
+  }
+  try {
+    Speech.stop();
+  } catch {
+    // ignore
+  }
+}
 
 // ============================================================
 // Child-like voice.
@@ -80,22 +99,6 @@ function childVoiceOptions(rate: number): Speech.SpeechOptions {
   return opts;
 }
 
-async function stopCurrent(): Promise<void> {
-  if (currentSound) {
-    try {
-      await currentSound.unloadAsync();
-    } catch {
-      // ignore
-    }
-    currentSound = null;
-  }
-  try {
-    Speech.stop();
-  } catch {
-    // ignore
-  }
-}
-
 /**
  * Speak/play a word. Resolves when audio finishes (approx for TTS).
  */
@@ -108,18 +111,28 @@ export async function playWord(opts: {
 
   if (opts.audioUri) {
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: opts.audioUri },
-        { shouldPlay: true }
-      );
-      currentSound = sound;
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const player = createAudioPlayer({ uri: opts.audioUri });
+      currentPlayer = player;
+      player.play();
+
       await new Promise<void>((resolve) => {
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) resolve();
-          if (!status.isLoaded && (status as any).error) resolve();
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          resolve();
+        };
+        const sub = player.addListener("playbackStatusUpdate", (status) => {
+          if (status.didJustFinish || status.error) {
+            sub?.remove?.();
+            finish();
+          }
         });
+        // Safety timeout in case the finish event never arrives.
+        setTimeout(finish, 8000);
       });
+
       await stopCurrent();
       return;
     } catch {
@@ -142,12 +155,8 @@ export async function playWord(opts: {
 
 /**
  * Speak a single letter aloud as it is highlighted during the spelling
- * animation. Uses TTS only (letters are never pre-recorded). Fire-and-forget:
- * the caller controls pacing via the highlight timer, so this does not await.
- *
- * We spell using the letter's phonetic name where the raw character would be
- * ambiguous or silent to TTS ("A" reads fine, but a bare letter is spoken as
- * its name, which is exactly what we want for spelling).
+ * animation. Uses TTS only. Fire-and-forget: the caller controls pacing via
+ * the highlight timer, so this does not await.
  */
 export function speakLetter(letter: string, ttsEnabled: boolean): void {
   if (!ttsEnabled) return;
