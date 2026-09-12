@@ -19,17 +19,20 @@ export function ChildHomeScreen({ navigation }: ScreenProps<"ChildHome">) {
   const { theme } = useTheme();
   const { activeProfile } = useApp();
   const [featured, setFeatured] = useState<Word[]>([]);
+  const [recent, setRecent] = useState<Word[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     if (!activeProfile) return;
-    const [feat, cats, allWords] = await Promise.all([
+    const [feat, recents, cats, allWords] = await Promise.all([
       WordRepo.listFeatured(activeProfile.id),
+      WordRepo.listRecentlyUsed(activeProfile.id, 10),
       CategoryRepo.listForProfile(activeProfile.id),
       WordRepo.listForProfile(activeProfile.id),
     ]);
     setFeatured(feat);
+    setRecent(recents);
     setCategories(cats);
     const c: Record<string, number> = {};
     for (const w of allWords) c[w.categoryId] = (c[w.categoryId] ?? 0) + 1;
@@ -69,6 +72,41 @@ export function ChildHomeScreen({ navigation }: ScreenProps<"ChildHome">) {
               contentContainerStyle={styles.featuredRow}
             >
               {featured.map((w) => (
+                <Pressable
+                  key={w.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={w.word}
+                  onPress={() => openWord(w)}
+                  style={({ pressed }) => [
+                    styles.featuredCard,
+                    { backgroundColor: theme.card, borderColor: pressed ? theme.primary : "transparent" },
+                    pressed && { transform: [{ scale: 0.95 }] },
+                  ]}
+                >
+                  {w.photoUri ? (
+                    <Image source={{ uri: w.photoUri }} style={styles.featuredPhoto} />
+                  ) : (
+                    <Text style={styles.featuredEmoji}>{w.emoji}</Text>
+                  )}
+                  <Text style={[styles.featuredWord, { color: theme.text }]} numberOfLines={1}>
+                    {w.word}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </>
+        )}
+
+        {/* Recently Used */}
+        {recent.length > 0 && (
+          <>
+            <Text style={[styles.sectionHeader, { color: theme.text }]}>🕘 Recently Used</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredRow}
+            >
+              {recent.map((w) => (
                 <Pressable
                   key={w.id}
                   accessibilityRole="button"

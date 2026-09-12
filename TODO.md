@@ -7,6 +7,10 @@
 - [ ] Decide on first EAS build: Android APK (no store account) or iOS (needs Apple ID)
 - [ ] Capture device-testing feedback from Expo Go into `notes.md` / roadmap
 
+## Features
+
+- [ ] Ajiya mentioned add songs and abc letters for Rohit .. Phase 2 
+
 ## Done
 - [x] Phase 1 local-only app built (Child + Caregiver modes, SQLite + filesystem)
 - [x] Fixed per-letter voice + child-like TTS voice

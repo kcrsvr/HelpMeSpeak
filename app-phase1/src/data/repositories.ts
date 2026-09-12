@@ -350,6 +350,19 @@ export const WordRepo = {
     return rows.map(mapWord);
   },
 
+  /**
+   * Most recently opened words, newest first. Only includes words that have
+   * actually been used (lastUsedAt set). Defaults to the last 10.
+   */
+  async listRecentlyUsed(profileId: string, limit = 10): Promise<Word[]> {
+    const db = await getDb();
+    const rows = await db.getAllAsync(
+      "SELECT * FROM words WHERE profileId = ? AND lastUsedAt IS NOT NULL ORDER BY lastUsedAt DESC LIMIT ?",
+      [profileId, limit]
+    );
+    return rows.map(mapWord);
+  },
+
   async get(id: string): Promise<Word | null> {
     const db = await getDb();
     const row = await db.getFirstAsync("SELECT * FROM words WHERE id = ?", [id]);

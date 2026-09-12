@@ -179,3 +179,61 @@ export function speakLetter(letter: string, ttsEnabled: boolean): void {
 export async function stopWord(): Promise<void> {
   await stopCurrent();
 }
+
+// ============================================================
+// Reward sound — plays when the child completes the "press the letters"
+// practice correctly. Plays a bundled applause clip if one is present,
+// otherwise falls back to a spoken cheer so there is always audible reward.
+//
+// To use a real clapping sound, drop an mp3/m4a at
+//   src/assets/applause.mp3
+// and set APPLAUSE_ASSET below to `require("../assets/applause.mp3")`.
+// ============================================================
+const APPLAUSE_ASSET: number | null = null;
+
+export async function playApplause(ttsEnabled: boolean): Promise<void> {
+  // Do NOT stopCurrent() here — the reward may layer over other feedback.
+  if (APPLAUSE_ASSET != null) {
+    try {
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const player = createAudioPlayer(APPLAUSE_ASSET);
+      player.play();
+      await new Promise<void>((resolve) => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          try {
+            player.remove();
+          } catch {
+            // ignore
+          }
+          resolve();
+        };
+        const sub = player.addListener("playbackStatusUpdate", (status) => {
+          if (status.didJustFinish || status.error) {
+            sub?.remove?.();
+            finish();
+          }
+        });
+        setTimeout(finish, 6000);
+      });
+      return;
+    } catch {
+      // fall through to spoken cheer
+    }
+  }
+
+  // Fallback: a short spoken cheer so the reward is always audible.
+  if (ttsEnabled) {
+    await resolveChildVoice();
+    await new Promise<void>((resolve) => {
+      Speech.speak("Yay! Well done!", {
+        ...childVoiceOptions(CHILD_RATE),
+        onDone: () => resolve(),
+        onStopped: () => resolve(),
+        onError: () => resolve(),
+      });
+    });
+  }
+}

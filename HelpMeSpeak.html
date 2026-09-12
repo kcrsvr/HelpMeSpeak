@@ -1357,18 +1357,15 @@ html, body {
       <div class="profile-avatar" onclick="showScreen('screen-settings')">👦</div>
     </div>
     <div class="section-header">⭐ Favorites</div>
-    <div class="fav-empty">
-      <div class="fav-empty-icon">⭐</div>
-      <div class="fav-empty-text">Your favorites live here</div>
-      <div class="fav-empty-sub">Words you use most will appear here automatically. Caregivers can also pin words from the settings.</div>
-    </div>
-    <div style="padding: 0 20px 12px;">
-      <div class="featured-row" style="padding: 0 0 8px;">
-        <div class="featured-card" onclick="startWordExp('Apple','🍎')"><div class="card-emoji">🍎</div><div class="card-word">Apple</div></div>
-        <div class="featured-card" onclick="startWordExp('Water','💧')"><div class="card-emoji">💧</div><div class="card-word">Water</div></div>
-        <div class="featured-card" onclick="startWordExp('Mama','👩')"><div class="card-emoji">👩</div><div class="card-word">Mama</div></div>
-        <div class="featured-card" onclick="startWordExp('More','🙌')"><div class="card-emoji">🙌</div><div class="card-word">More</div></div>
-        <div class="featured-card" onclick="startWordExp('Help','🆘')"><div class="card-emoji">🆘</div><div class="card-word">Help</div></div>
+    <!-- All favorites shown in a 2-column tile grid (matches the app) -->
+    <div class="scrollable">
+      <div class="word-grid">
+        <div class="word-card" onclick="startWordExp('Apple','🍎')"><div class="card-emoji">🍎</div><div class="card-word">Apple</div></div>
+        <div class="word-card" onclick="startWordExp('Water','💧')"><div class="card-emoji">💧</div><div class="card-word">Water</div></div>
+        <div class="word-card" onclick="startWordExp('Mama','👩')"><div class="card-emoji">👩</div><div class="card-word">Mama</div></div>
+        <div class="word-card" onclick="startWordExp('More','🙌')"><div class="card-emoji">🙌</div><div class="card-word">More</div></div>
+        <div class="word-card" onclick="startWordExp('Help','🆘')"><div class="card-emoji">🆘</div><div class="card-word">Help</div></div>
+        <div class="word-card" onclick="startWordExp('Happy','😊')"><div class="card-emoji">😊</div><div class="card-word">Happy</div></div>
       </div>
     </div>
     <div class="bottom-nav">
@@ -1588,7 +1585,7 @@ html, body {
         </div>
         <div class="cg-action-btn" onclick="showScreen('screen-manage-categories'); renderManageCatList();">
           <div class="cg-action-icon">📂</div>
-          <div class="cg-action-label">Manage Categories</div>
+          <div class="cg-action-label">Manage Words/Categories</div>
         </div>
         <div class="cg-action-btn" onclick="showToast('📊 Activity tracking — coming in v2!')">
           <div class="cg-action-icon">📊</div>
@@ -1641,19 +1638,24 @@ html, body {
     <div class="wizard-body">
       <!-- Step 1: Photo -->
       <div class="wizard-step active" id="wstep-1">
-        <div class="wizard-step-title">📸 Upload a Photo</div>
-        <div class="wizard-step-desc">Choose a clear photo your child will recognise. You can use their favourite real object.</div>
-        <div class="upload-area" id="upload-area" onclick="simulateUpload()">
+        <div class="wizard-step-title">📸 Add a Picture</div>
+        <div class="wizard-step-desc">Choose a photo from the library or take one with the camera. Or use an emoji for now.</div>
+        <div class="upload-area" id="upload-area">
           <div class="upload-icon">📷</div>
-          <div class="upload-label">Tap to choose photo</div>
-          <div class="upload-sub">From camera roll or camera</div>
+          <div class="upload-label" id="upload-label">No photo yet</div>
+          <div class="upload-sub">Choose a photo or take one with the camera</div>
         </div>
-        <div style="margin-top:16px; display:flex; gap:10px;">
-          <button onclick="simulateUploadEmoji('🍊')" style="flex:1; padding:12px; border-radius:14px; background:rgba(187,134,252,0.1); border:2px solid rgba(187,134,252,0.3); color:white; font-size:24px; cursor:pointer; font-family:Nunito,sans-serif; font-weight:700;">🍊 Orange</button>
-          <button onclick="simulateUploadEmoji('🐶')" style="flex:1; padding:12px; border-radius:14px; background:rgba(187,134,252,0.1); border:2px solid rgba(187,134,252,0.3); color:white; font-size:24px; cursor:pointer; font-family:Nunito,sans-serif; font-weight:700;">🐶 Dog</button>
-          <button onclick="simulateUploadEmoji('🚗')" style="flex:1; padding:12px; border-radius:14px; background:rgba(187,134,252,0.1); border:2px solid rgba(187,134,252,0.3); color:white; font-size:24px; cursor:pointer; font-family:Nunito,sans-serif; font-weight:700;">🚗 Car</button>
+        <!-- Two ways to add a photo: library or camera (matches the app) -->
+        <div style="margin-top:14px; display:flex; gap:12px;">
+          <button onclick="simulateUpload('library')" style="flex:1; padding:16px; border-radius:16px; background:#1A1A2E; border:1px solid rgba(187,134,252,0.35); color:white; cursor:pointer; font-family:Nunito,sans-serif; font-weight:800; font-size:14px;">🖼️<br>Choose Photo</button>
+          <button onclick="simulateUpload('camera')" style="flex:1; padding:16px; border-radius:16px; background:#1A1A2E; border:1px solid rgba(187,134,252,0.35); color:white; cursor:pointer; font-family:Nunito,sans-serif; font-weight:800; font-size:14px;">📷<br>Take Photo</button>
         </div>
-        <div style="font-size:12px; font-weight:600; color:rgba(255,255,255,0.4); text-align:center; margin-top:12px;">Tap a quick-pick emoji above to simulate a photo upload</div>
+        <div style="font-size:13px; font-weight:700; color:rgba(255,255,255,0.6); margin-top:16px;">Or pick an emoji</div>
+        <div style="margin-top:8px; display:flex; gap:10px;">
+          <button onclick="simulateUploadEmoji('🍊')" style="flex:1; padding:12px; border-radius:14px; background:rgba(187,134,252,0.1); border:2px solid rgba(187,134,252,0.3); color:white; font-size:24px; cursor:pointer; font-family:Nunito,sans-serif; font-weight:700;">🍊</button>
+          <button onclick="simulateUploadEmoji('🐶')" style="flex:1; padding:12px; border-radius:14px; background:rgba(187,134,252,0.1); border:2px solid rgba(187,134,252,0.3); color:white; font-size:24px; cursor:pointer; font-family:Nunito,sans-serif; font-weight:700;">🐶</button>
+          <button onclick="simulateUploadEmoji('🚗')" style="flex:1; padding:12px; border-radius:14px; background:rgba(187,134,252,0.1); border:2px solid rgba(187,134,252,0.3); color:white; font-size:24px; cursor:pointer; font-family:Nunito,sans-serif; font-weight:700;">🚗</button>
+        </div>
       </div>
 
       <!-- Step 2: Audio -->
@@ -1763,12 +1765,12 @@ html, body {
   <div class="screen" id="screen-manage-categories">
     <div class="cg-header">
       <button class="btn-exit-cg" onclick="showScreen('screen-caregiver-home')">← Back</button>
-      <div class="cg-header-title">📂 Categories</div>
+      <div class="cg-header-title">📂 Words / Categories</div>
       <div style="width:70px;"></div>
     </div>
     <div style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;">
       <div style="padding:12px 20px 6px; font-size:12px; font-weight:800; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px;">
-        Pre-loaded · 10 categories
+        Tap a category to edit it and its words
       </div>
       <div class="manage-cat-list" id="manage-cat-list">
         <!-- populated by JS -->
@@ -1797,7 +1799,13 @@ html, body {
         placeholder="e.g. Transport, Animals…" maxlength="20"
         oninput="updateCatPreview()">
 
-      <div class="create-cat-label">Pick an Emoji Icon</div>
+      <div class="create-cat-label">Use a Picture</div>
+      <div style="display:flex; gap:12px;">
+        <button onclick="simulateCatPhoto('library')" style="flex:1; padding:16px; border-radius:16px; background:#1A1A2E; border:1px solid rgba(187,134,252,0.35); color:white; cursor:pointer; font-family:Nunito,sans-serif; font-weight:800; font-size:14px;">🖼️ Choose Photo</button>
+        <button onclick="simulateCatPhoto('camera')" style="flex:1; padding:16px; border-radius:16px; background:#1A1A2E; border:1px solid rgba(187,134,252,0.35); color:white; cursor:pointer; font-family:Nunito,sans-serif; font-weight:800; font-size:14px;">📷 Take Photo</button>
+      </div>
+
+      <div class="create-cat-label">Or Pick an Emoji Icon</div>
       <div class="emoji-picker-grid" id="emoji-picker-grid">
         <!-- populated by JS -->
       </div>
@@ -1822,6 +1830,43 @@ html, body {
     <div class="create-cat-footer">
       <button class="btn-save-category" onclick="saveNewCategory()">Save Category ✓</button>
       <button class="btn-cancel-category" onclick="closeCreateCategory()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- =============================================
+       SCREEN 14: CATEGORY DETAIL (edit category + its words)
+       ============================================= -->
+  <div class="screen" id="screen-category-detail">
+    <div class="cg-header">
+      <button class="btn-exit-cg" onclick="showScreen('screen-manage-categories'); renderManageCatList();">← Back</button>
+      <div class="cg-header-title">✏️ Edit Category</div>
+      <div style="width:70px;"></div>
+    </div>
+    <div style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px 20px;">
+
+      <!-- editable header: picture/emoji + name -->
+      <div style="background:#1A1A2E; border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:14px;">
+        <div style="display:flex; gap:14px; align-items:center;">
+          <div id="cd-preview" style="width:72px; height:72px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:36px;">🐶</div>
+          <div style="flex:1; display:flex; gap:8px;">
+            <button onclick="detailChoosePhoto('library')" style="flex:1; padding:12px; border-radius:12px; background:rgba(187,134,252,0.15); border:1px solid rgba(187,134,252,0.35); color:white; font-family:Nunito,sans-serif; font-weight:800; cursor:pointer;">🖼️ Choose</button>
+            <button onclick="detailChoosePhoto('camera')" style="flex:1; padding:12px; border-radius:12px; background:rgba(187,134,252,0.15); border:1px solid rgba(187,134,252,0.35); color:white; font-family:Nunito,sans-serif; font-weight:800; cursor:pointer;">📷 Camera</button>
+          </div>
+        </div>
+        <input class="create-cat-input" id="cd-name" type="text" maxlength="20"
+          placeholder="Category name" oninput="detailRenamePreview()">
+      </div>
+
+      <!-- words header + add -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin:20px 0 12px;">
+        <div style="font-size:13px; font-weight:800; color:#BB86FC; letter-spacing:1px;" id="cd-words-header">WORDS</div>
+        <button onclick="showScreen('screen-add-word')" style="background:#BB86FC; color:#0F0F1A; border:none; border-radius:12px; padding:8px 14px; font-family:Nunito,sans-serif; font-weight:800; font-size:13px; cursor:pointer;">＋ Add Word</button>
+      </div>
+
+      <!-- 2-column word tiles, alphabetical -->
+      <div id="cd-word-grid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:14px;">
+        <!-- populated by JS -->
+      </div>
     </div>
   </div>
 
@@ -2555,7 +2600,16 @@ function saveWord(addAnother) {
   }
 }
 
-function simulateUpload() { simulateUploadEmoji('📸'); }
+function simulateUpload(source) {
+  // Simulate picking from the library vs. capturing with the camera.
+  const label = source === 'camera' ? 'Photo taken 📷' : 'Photo chosen 🖼️';
+  const emoji = source === 'camera' ? '🖼️' : '🖼️';
+  appState.wizardPhoto = emoji;
+  const area = document.getElementById('upload-area');
+  area.classList.add('has-photo');
+  area.innerHTML = `<div class="upload-preview-emoji">${emoji}</div><div class="upload-label" style="color:rgba(255,255,255,0.9);">${label}</div><div class="upload-sub">Tap a button to change</div>`;
+  showToast(source === 'camera' ? '📷 Camera opened (simulated)' : '🖼️ Photo library opened (simulated)');
+}
 
 function simulateUploadEmoji(emoji) {
   appState.wizardPhoto = emoji;
@@ -2683,14 +2737,15 @@ const appCategories = [
 function renderManageCatList() {
   const list = document.getElementById('manage-cat-list');
   list.innerHTML = appCategories.map((cat, i) => `
-    <div class="manage-cat-row">
-      <div class="manage-cat-emoji">${cat.emoji}</div>
+    <div class="manage-cat-row" onclick="openCategoryDetail(${i})" style="cursor:pointer;">
+      <div class="manage-cat-emoji">${cat.photo ? '🖼️' : cat.emoji}</div>
       <div class="manage-cat-info">
         <div class="manage-cat-name">${cat.name}</div>
         <div class="manage-cat-count">${cat.count} word${cat.count !== 1 ? 's' : ''}${cat.builtin ? ' · built-in' : ' · custom'}</div>
       </div>
       <div class="manage-cat-color-dot" style="background:${cat.color};"></div>
-      ${!cat.builtin ? `<button onclick="deleteCustomCategory(${i})" style="background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:10px;color:#E74C3C;font-size:13px;font-weight:700;padding:6px 10px;cursor:pointer;font-family:Nunito,sans-serif;min-height:36px;margin-left:4px;">Delete</button>` : ''}
+      <div style="color:rgba(255,255,255,0.4); font-size:22px; font-weight:700; padding:0 4px;">›</div>
+      ${!cat.builtin ? `<button onclick="event.stopPropagation(); deleteCustomCategory(${i})" style="background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:10px;color:#E74C3C;font-size:13px;font-weight:700;padding:6px 10px;cursor:pointer;font-family:Nunito,sans-serif;min-height:36px;margin-left:4px;">Delete</button>` : ''}
     </div>
   `).join('');
 }
@@ -2705,6 +2760,72 @@ function deleteCustomCategory(idx) {
 }
 
 /* ============================================================
+   CATEGORY DETAIL — edit a category and its words
+   ============================================================ */
+// Sample words per category (prototype data), keyed by category name.
+const catSampleWords = {
+  Food:       [['Apple','🍎'],['Banana','🍌'],['Bread','🍞'],['Cookie','🍪'],['Egg','🥚'],['Rice','🍚']],
+  Drink:      [['Water','💧'],['Milk','🥛'],['Juice','🧃'],['Tea','🍵']],
+  Feelings:   [['Angry','😠'],['Happy','😊'],['Sad','😢'],['Scared','😨'],['Tired','🥱']],
+  People:     [['Dad','👨'],['Doctor','🧑‍⚕️'],['Friend','🧒'],['Mom','👩'],['Teacher','🧑‍🏫']],
+  Places:     [['Home','🏠'],['Park','🏞️'],['School','🏫'],['Store','🏪']],
+  Activities: [['Music','🎵'],['Play','🎮'],['Read','📖'],['TV','📺'],['Walk','🚶']],
+};
+
+let currentDetailCat = 0;
+
+function openCategoryDetail(idx) {
+  currentDetailCat = idx;
+  const cat = appCategories[idx];
+
+  // header preview (picture or emoji) + name
+  const preview = document.getElementById('cd-preview');
+  preview.textContent = cat.photo ? cat.photo : cat.emoji;
+  preview.style.background = cat.color;
+  document.getElementById('cd-name').value = cat.name;
+
+  // words, sorted alphabetically, in a 2-column grid
+  const words = (catSampleWords[cat.name] || [])
+    .slice()
+    .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
+  document.getElementById('cd-words-header').textContent = `WORDS (${words.length})`;
+
+  const grid = document.getElementById('cd-word-grid');
+  if (words.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1; color:rgba(255,255,255,0.5); font-weight:600; text-align:center; padding:20px;">No words yet. Tap “Add Word” to create one.</div>`;
+  } else {
+    grid.innerHTML = words.map(([w, e]) => `
+      <div onclick="editDetailWord('${w}','${e}')" style="background:#1A1A2E; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:14px; min-height:130px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer;">
+        <div style="font-size:44px;">${e}</div>
+        <div style="color:white; font-weight:800; font-size:15px;">${w}</div>
+        <div style="color:#BB86FC; font-weight:700; font-size:11px;">Tap to edit ✎</div>
+      </div>
+    `).join('');
+  }
+
+  showScreen('screen-category-detail');
+}
+
+function detailRenamePreview() {
+  // In the app this saves on blur; here we just reflect it live.
+  const v = document.getElementById('cd-name').value.trim();
+  appCategories[currentDetailCat].name = v || appCategories[currentDetailCat].name;
+}
+
+function detailChoosePhoto(source) {
+  appCategories[currentDetailCat].photo = '🖼️';
+  const preview = document.getElementById('cd-preview');
+  preview.textContent = '🖼️';
+  showToast(source === 'camera' ? '📷 Camera opened (simulated)' : '🖼️ Photo library opened (simulated)');
+}
+
+function editDetailWord(word, emoji) {
+  // In the app this opens the Add/Edit wizard in edit mode for that word.
+  showScreen('screen-add-word');
+  showToast(`✏️ Editing "${word}" ${emoji}`);
+}
+
+/* ============================================================
    CREATE NEW CATEGORY
    ============================================================ */
 const catEmojiOptions = ['🐶','🐱','🚗','🏖️','🎨','🎵','🌈','⚽','🦋','🌸',
@@ -2715,12 +2836,13 @@ const catColorOptions = ['#E74C3C','#E91E63','#9C27B0','#673AB7','#3F51B5',
                           '#8BC34A','#CDDC39','#FFC107','#FF9800','#FF5722',
                           '#795548','#607D8B','#BB86FC'];
 
-let newCatState = { emoji: '🐶', color: '#BB86FC', returnScreen: 'screen-manage-categories' };
+let newCatState = { emoji: '🐶', color: '#BB86FC', photo: null, returnScreen: 'screen-manage-categories' };
 
 function openCreateCategory(returnScreen) {
   newCatState.returnScreen = returnScreen;
   newCatState.emoji = '🐶';
   newCatState.color = '#BB86FC';
+  newCatState.photo = null;
 
   // Build emoji grid
   const grid = document.getElementById('emoji-picker-grid');
@@ -2749,7 +2871,15 @@ function pickCatEmoji(btn, emoji) {
   document.querySelectorAll('.emoji-pick-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   newCatState.emoji = emoji;
+  newCatState.photo = null; // choosing an emoji clears any picture
   updateCatPreview();
+}
+
+// Simulate adding a category picture from the library or camera (matches the app).
+function simulateCatPhoto(source) {
+  newCatState.photo = '🖼️';
+  updateCatPreview();
+  showToast(source === 'camera' ? '📷 Camera opened (simulated)' : '🖼️ Photo library opened (simulated)');
 }
 
 function pickCatColor(btn, color) {
@@ -2761,8 +2891,10 @@ function pickCatColor(btn, color) {
 
 function updateCatPreview() {
   const name = document.getElementById('new-cat-name').value.trim() || 'My Category';
-  document.getElementById('cat-preview-tile').textContent = newCatState.emoji;
-  document.getElementById('cat-preview-tile').style.background = newCatState.color;
+  const tile = document.getElementById('cat-preview-tile');
+  // Show the picture indicator if a photo was chosen, else the emoji.
+  tile.textContent = newCatState.photo ? newCatState.photo : newCatState.emoji;
+  tile.style.background = newCatState.color;
   document.getElementById('cat-preview-name').textContent = name;
 }
 
