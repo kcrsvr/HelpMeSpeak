@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "../state/AppContext";
 import { ScreenProps } from "../navigation/types";
@@ -41,7 +41,11 @@ export function CaregiverHomeScreen({ navigation }: ScreenProps<"CaregiverHome">
         <Text style={styles.sectionTitle}>CHILD PROFILE</Text>
         <View style={styles.profileCard}>
           <View style={styles.profileAvatar}>
-            <Text style={{ fontSize: 30 }}>{activeProfile?.avatarEmoji ?? "🙂"}</Text>
+            {activeProfile?.avatarUri ? (
+              <Image source={{ uri: activeProfile.avatarUri }} style={styles.profileAvatarImg} />
+            ) : (
+              <Text style={{ fontSize: 30 }}>{activeProfile?.avatarEmoji ?? "🙂"}</Text>
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.profileName}>{activeProfile?.name ?? "Child"}</Text>
@@ -174,7 +178,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#6200EE",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
+  profileAvatarImg: { width: "100%", height: "100%" },
   profileName: { fontSize: 20, fontWeight: "900", color: "#FFF" },
   profileSub: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.5)", marginTop: 2 },
   manageBtn: {

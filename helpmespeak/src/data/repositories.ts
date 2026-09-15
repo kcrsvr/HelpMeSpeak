@@ -29,6 +29,7 @@ function mapProfile(r: any): Profile {
     id: r.id,
     name: r.name,
     avatarEmoji: r.avatarEmoji,
+    avatarUri: r.avatarUri ?? null,
     theme: r.theme as ThemeId,
     spellingSpeed: r.spellingSpeed as SpellingSpeed,
     gridSize: r.gridSize,
@@ -140,6 +141,7 @@ export const ProfileRepo = {
   async createWithSeed(input: {
     name: string;
     avatarEmoji?: string;
+    avatarUri?: string | null;
     theme?: ThemeId;
   }): Promise<Profile> {
     const db = await getDb();
@@ -149,6 +151,7 @@ export const ProfileRepo = {
       id: profileId,
       name: input.name.trim() || "Child",
       avatarEmoji: input.avatarEmoji ?? "🙂",
+      avatarUri: input.avatarUri ?? null,
       theme: input.theme ?? "calm-blue",
       spellingSpeed: "medium",
       gridSize: 2,
@@ -161,12 +164,13 @@ export const ProfileRepo = {
     await db.withTransactionAsync(async () => {
       await db.runAsync(
         `INSERT INTO profiles
-          (id, name, avatarEmoji, theme, spellingSpeed, gridSize, ttsEnabled, animationEnabled, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (id, name, avatarEmoji, avatarUri, theme, spellingSpeed, gridSize, ttsEnabled, animationEnabled, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           profile.id,
           profile.name,
           profile.avatarEmoji,
+          profile.avatarUri,
           profile.theme,
           profile.spellingSpeed,
           profile.gridSize,
@@ -219,12 +223,13 @@ export const ProfileRepo = {
     const next = { ...existing, ...patch, updatedAt: now() };
     await db.runAsync(
       `UPDATE profiles SET
-        name = ?, avatarEmoji = ?, theme = ?, spellingSpeed = ?, gridSize = ?,
+        name = ?, avatarEmoji = ?, avatarUri = ?, theme = ?, spellingSpeed = ?, gridSize = ?,
         ttsEnabled = ?, animationEnabled = ?, updatedAt = ?
        WHERE id = ?`,
       [
         next.name,
         next.avatarEmoji,
+        next.avatarUri,
         next.theme,
         next.spellingSpeed,
         next.gridSize,

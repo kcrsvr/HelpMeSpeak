@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "helpmespeak",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#4A90D9",
       "resizeMode": "contain"
     },
@@ -25,6 +27,7 @@
     "android": {
       "package": "com.helpmespeak.app",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4A90D9"
       },
       "permissions": [

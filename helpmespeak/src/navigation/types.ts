@@ -4,11 +4,13 @@ export type RootStackParamList = {
   // First run
   Splash: undefined;
   Onboarding: undefined;
+  Welcome: undefined;
 
   // Child mode
   ChildHome: undefined;
   Category: { categoryId: string; categoryName: string };
   Favorites: undefined;
+  RecentlyUsed: undefined;
   WordExperience: { wordId: string };
 
   // Caregiver mode

@@ -56,7 +56,11 @@ export function ChildHomeScreen({ navigation }: ScreenProps<"ChildHome">) {
         <View style={styles.header}>
           <Text style={[styles.logo, { color: theme.headerText }]}>HelpMeSpeak</Text>
           <View style={styles.avatar}>
-            <Text style={{ fontSize: 22 }}>{activeProfile?.avatarEmoji ?? "🙂"}</Text>
+            {activeProfile?.avatarUri ? (
+              <Image source={{ uri: activeProfile.avatarUri }} style={styles.avatarImg} />
+            ) : (
+              <Text style={{ fontSize: 22 }}>{activeProfile?.avatarEmoji ?? "🙂"}</Text>
+            )}
           </View>
         </View>
       </SafeAreaView>
@@ -171,6 +175,13 @@ export function ChildHomeScreen({ navigation }: ScreenProps<"ChildHome">) {
             textLight={theme.textLight}
           />
           <NavTab
+            icon="🕒"
+            label="Recent"
+            onPress={() => navigation.navigate("RecentlyUsed")}
+            color={theme.navActive}
+            textLight={theme.textLight}
+          />
+          <NavTab
             icon="🔒"
             label="Caregiver"
             onPress={() => navigation.navigate("PinGate")}
@@ -231,7 +242,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.5)",
+    overflow: "hidden",
   },
+  avatarImg: { width: "100%", height: "100%" },
   scroll: { flex: 1 },
   sectionHeader: { fontSize: 16, fontWeight: "800", paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10 },
   featuredRow: { gap: 14, paddingHorizontal: 20, paddingBottom: 8 },

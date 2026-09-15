@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Splash screen artwork: the icon motif centered on the brand blue. -->
+<svg width="1284" height="2778" viewBox="0 0 1284 2778" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1284" height="2778" fill="#4A90D9"/>
+  <g transform="translate(642 1389) scale(1.4) translate(-512 -512)">
+    <path d="M 512 300
+             C 372 300 274 388 274 506
+             C 274 594 329 668 414 699
+             L 399 777
+             C 396 792 412 802 424 793
+             L 516 728
+             C 518 728 512 728 512 728
+             C 652 728 750 624 750 506
+             C 750 388 652 300 512 300 Z"
+          fill="#FFFFFF"/>
+    <path d="M 512 622
+             C 512 622 409 560 409 486
+             C 409 446 440 420 477 420
+             C 499 420 512 434 512 434
+             C 512 434 525 420 547 420
+             C 584 420 615 446 615 486
+             C 615 560 512 622 512 622 Z"
+          fill="#E74C3C"/>
+  </g>
+</svg>

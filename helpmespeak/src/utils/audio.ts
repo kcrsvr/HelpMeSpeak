@@ -10,6 +10,7 @@
 
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 import * as Speech from "expo-speech";
+import { voiceClip } from "../assets/voice";
 
 let currentPlayer: AudioPlayer | null = null;
 
@@ -100,6 +101,48 @@ function childVoiceOptions(rate: number): Speech.SpeechOptions {
 }
 
 /**
+ * Play a bundled voice-pack clip for `text` if one exists. Returns true if a
+ * clip was found and played (to completion), false if there is no clip (caller
+ * should then fall back to TTS). `trackAsCurrent` lets awaited playback be
+ * interrupted by stopCurrent(); fire-and-forget callers pass false.
+ */
+async function playPackClip(text: string, trackAsCurrent: boolean): Promise<boolean> {
+  const asset = voiceClip(text);
+  if (asset == null) return false;
+  try {
+    await setAudioModeAsync({ playsInSilentMode: true });
+    const player = createAudioPlayer(asset);
+    if (trackAsCurrent) currentPlayer = player;
+    player.play();
+    await new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        if (!trackAsCurrent) {
+          try {
+            player.remove();
+          } catch {
+            // ignore
+          }
+        }
+        resolve();
+      };
+      const sub = player.addListener("playbackStatusUpdate", (status) => {
+        if (status.didJustFinish || status.error) {
+          sub?.remove?.();
+          finish();
+        }
+      });
+      setTimeout(finish, 8000);
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Speak/play a word. Resolves when audio finishes (approx for TTS).
  */
 export async function playWord(opts: {
@@ -136,10 +179,17 @@ export async function playWord(opts: {
       await stopCurrent();
       return;
     } catch {
-      // fall through to TTS
+      // fall through to voice pack / TTS
     }
   }
 
+  // Next priority: a bundled child-voice-pack clip for this word.
+  if (await playPackClip(opts.word, true)) {
+    await stopCurrent();
+    return;
+  }
+
+  // Last resort: on-device TTS.
   if (opts.ttsEnabled) {
     await resolveChildVoice();
     await new Promise<void>((resolve) => {
@@ -159,14 +209,26 @@ export async function playWord(opts: {
  * the highlight timer, so this does not await.
  */
 export function speakLetter(letter: string, ttsEnabled: boolean): void {
-  if (!ttsEnabled) return;
   const ch = letter.trim();
   if (!ch) return;
-  // Ensure the child voice is resolved (cached after the first call).
+
+  // Prefer a bundled child-voice clip for this letter, if one exists. This is
+  // fire-and-forget; playPackClip stops any prior clip via createAudioPlayer.
+  if (voiceClip(ch) != null) {
+    // Stop any lingering speech first so letters stay in sync with the highlight.
+    try {
+      Speech.stop();
+    } catch {
+      // ignore
+    }
+    playPackClip(ch, true).catch(() => {});
+    return;
+  }
+
+  // Fall back to on-device TTS (respecting the profile's TTS toggle).
+  if (!ttsEnabled) return;
   resolveChildVoice();
   try {
-    // Stop any lingering utterance so letters don't queue up and drift
-    // out of sync with the highlight.
     Speech.stop();
     // Speak the lowercase letter — passing an uppercase character makes some
     // TTS voices announce "capital A" instead of just the letter name.
@@ -174,6 +236,33 @@ export function speakLetter(letter: string, ttsEnabled: boolean): void {
   } catch {
     // TTS is best-effort
   }
+}
+
+/**
+ * Speak an arbitrary phrase aloud with the child-like voice (e.g. the welcome
+ * greeting "Welcome, Rohit"). Resolves when speech finishes.
+ */
+export async function speakPhrase(phrase: string, ttsEnabled: boolean): Promise<void> {
+  const text = phrase.trim();
+  if (!text) return;
+  await stopCurrent();
+
+  // Prefer a bundled child-voice clip for the whole phrase (e.g. "welcome_rohit"
+  // if generated, or a generic "welcome"). Falls through to TTS otherwise.
+  if (await playPackClip(text, true)) {
+    return;
+  }
+
+  if (!ttsEnabled) return;
+  await resolveChildVoice();
+  await new Promise<void>((resolve) => {
+    Speech.speak(text, {
+      ...childVoiceOptions(CHILD_RATE),
+      onDone: () => resolve(),
+      onStopped: () => resolve(),
+      onError: () => resolve(),
+    });
+  });
 }
 
 export async function stopWord(): Promise<void> {

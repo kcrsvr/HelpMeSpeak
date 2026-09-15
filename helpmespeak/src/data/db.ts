@@ -29,6 +29,7 @@ export async function initSchema(): Promise<void> {
       id            TEXT PRIMARY KEY NOT NULL,
       name          TEXT NOT NULL,
       avatarEmoji   TEXT NOT NULL DEFAULT '🙂',
+      avatarUri     TEXT,
       theme         TEXT NOT NULL DEFAULT 'calm-blue',
       spellingSpeed TEXT NOT NULL DEFAULT 'medium',
       gridSize      INTEGER NOT NULL DEFAULT 2,
@@ -91,6 +92,7 @@ export async function initSchema(): Promise<void> {
  */
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   await addColumnIfMissing(db, "categories", "imageUri", "TEXT");
+  await addColumnIfMissing(db, "profiles", "avatarUri", "TEXT");
 }
 
 async function addColumnIfMissing(

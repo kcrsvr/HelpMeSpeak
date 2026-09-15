@@ -312,50 +312,23 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
               };
 
               // ---- PRACTICE ("Press") mode: a distinct look from the auto
-              // sequence. Pressed letters become bold, bigger, and a different
-              // color so the child clearly sees what's done vs. still to press.
+              // sequence, plus an animated "press me next" cue on the current
+              // target letter so the child feels the urge to tap it.
               if (practice) {
                 const isFlashing = i === flashIndex; // just tapped, popping
                 const isPressed = i < pressedCount && !isFlashing; // already done
                 const isNext = i === pressedCount && !isFlashing; // press me next
-                // pending = not yet reached (dim, waiting)
-
-                const tileStyle = [
-                  styles.letter,
-                  baseTile,
-                  // Not-yet-pressed letters are muted so pressed ones stand out.
-                  !isPressed && !isFlashing && styles.pendingTile,
-                  isNext && { backgroundColor: "rgba(255,255,255,0.3)" },
-                  // Pressed letters: solid accent color, slightly enlarged.
-                  isPressed && {
-                    backgroundColor: theme.accent,
-                    transform: [{ scale: 1.15 }],
-                  },
-                  // The tile being tapped: energetic highlight pop.
-                  isFlashing && {
-                    backgroundColor: theme.highlight,
-                    transform: [{ scale: 1.5 }],
-                  },
-                ];
-                const textStyle = [
-                  styles.letterText,
-                  { fontSize: dims.letterFontSize },
-                  // Pressed letters get bolder, brighter, white text.
-                  isPressed && { color: "#FFF", fontWeight: "900" as const },
-                  isFlashing && { color: "#1A1A1A", fontWeight: "900" as const },
-                  isNext && { color: "#FFF" },
-                ];
 
                 return (
-                  <Pressable
+                  <PracticeLetterTile
                     key={i}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Letter ${ch.toUpperCase()}`}
+                    char={ch}
+                    baseTile={baseTile}
+                    fontSize={dims.letterFontSize}
+                    state={isFlashing ? "flashing" : isPressed ? "pressed" : isNext ? "next" : "pending"}
+                    highlightColor={theme.highlight}
                     onPress={() => onPressLetter(i)}
-                    style={tileStyle}
-                  >
-                    <Text style={textStyle}>{ch.toUpperCase()}</Text>
-                  </Pressable>
+                  />
                 );
               }
 
@@ -439,6 +412,129 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
   );
 }
 
+type PracticeState = "pending" | "next" | "pressed" | "flashing";
+
+/**
+ * A single letter tile in "Press" practice mode.
+ *
+ * The "next" letter (the one the child should press) gently PULSES — a soft
+ * breathing scale plus a grey→light background shimmer — to draw the eye and
+ * invite a tap, without the harshness of a hard blink (kinder for sensory
+ * sensitivity). When pressed it settles into the enlarged highlight-colour
+ * "done" look, and the pulse automatically moves to the new next letter.
+ */
+function PracticeLetterTile({
+  char,
+  baseTile,
+  fontSize,
+  state,
+  highlightColor,
+  onPress,
+}: {
+  char: string;
+  baseTile: { width: number; height: number; borderRadius: number };
+  fontSize: number;
+  state: PracticeState;
+  highlightColor: string;
+  onPress: () => void;
+}) {
+  // 0..1 drives the pulse for the "next" tile.
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (state === "next") {
+      pulse.setValue(0);
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, {
+            toValue: 1,
+            duration: 650,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false, // backgroundColor can't use native driver
+          }),
+          Animated.timing(pulse, {
+            toValue: 0,
+            duration: 650,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+        ])
+      );
+      loop.start();
+      return () => {
+        loop.stop();
+        pulse.setValue(0);
+      };
+    }
+    // non-next states: make sure the pulse is reset
+    pulse.setValue(0);
+    return undefined;
+  }, [state, pulse]);
+
+  // Static (non-animated) states.
+  if (state === "pressed" || state === "flashing") {
+    const scale = state === "flashing" ? 1.6 : 1.2;
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Letter ${char.toUpperCase()}`}
+        onPress={onPress}
+        style={[
+          styles.letter,
+          baseTile,
+          { backgroundColor: highlightColor, transform: [{ scale }] },
+        ]}
+      >
+        <Text style={[styles.letterText, { fontSize, color: "#1A1A1A", fontWeight: "900" }]}>
+          {char.toUpperCase()}
+        </Text>
+      </Pressable>
+    );
+  }
+
+  if (state === "pending") {
+    // Not yet reached — dim and quiet.
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Letter ${char.toUpperCase()}`}
+        onPress={onPress}
+        style={[styles.letter, baseTile, styles.pendingTile]}
+      >
+        <Text style={[styles.letterText, { fontSize, color: "rgba(255,255,255,0.6)" }]}>
+          {char.toUpperCase()}
+        </Text>
+      </Pressable>
+    );
+  }
+
+  // state === "next" → animated grey→light pulse + gentle scale breathing.
+  const animatedBg = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(200,200,200,0.35)", "rgba(255,255,255,0.85)"],
+  });
+  const animatedScale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.18],
+  });
+
+  return (
+    <Animated.View style={{ transform: [{ scale: animatedScale }] }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Press letter ${char.toUpperCase()}`}
+        onPress={onPress}
+      >
+        <Animated.View style={[styles.letter, baseTile, { backgroundColor: animatedBg }]}>
+          <Text style={[styles.letterText, { fontSize, color: "#1A2A3A", fontWeight: "900" }]}>
+            {char.toUpperCase()}
+          </Text>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 type LayoutSize = { width: number; height: number };
 
 type DynamicSizes = {
@@ -508,10 +604,11 @@ function computeDynamicSizes(layout: LayoutSize | null, letterCount: number): Dy
 
   // --- Picture/emoji: take whatever vertical space is left ------------------
   // Reserve room for the letter row AND the celebrate block (now just the
-  // "Again?" button), or they overlap the picture. The active letter scales to
-  // 1.5x from its center, so it grows 0.25*tileHeight ABOVE the row's normal top
-  // edge — the top margin plus this headroom keeps that growth off the picture.
-  const activeOvershoot = tileHeight * 0.25;
+  // "Again?" button), or they overlap the picture. A tapped letter scales up to
+  // 1.6x from its center in practice mode, so it grows ~0.3*tileHeight ABOVE the
+  // row's normal top edge — the top margin plus this headroom keeps that growth
+  // off the picture on every device size.
+  const activeOvershoot = tileHeight * 0.3;
   const lettersBlock = lettersTopMargin + tileHeight + activeOvershoot;
   // Celebrate block = the button row (Again + Press, side by side so height is
   // one button) plus a practice-hint line (~24px) that can appear below it.

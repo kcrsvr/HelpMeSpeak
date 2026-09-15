@@ -11,9 +11,11 @@ import { RootStackParamList } from "./src/navigation/types";
 
 import { SplashScreen } from "./src/screens/SplashScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 import { ChildHomeScreen } from "./src/screens/ChildHomeScreen";
 import { CategoryScreen } from "./src/screens/CategoryScreen";
 import { FavoritesScreen } from "./src/screens/FavoritesScreen";
+import { RecentlyUsedScreen } from "./src/screens/RecentlyUsedScreen";
 import { WordExperienceScreen } from "./src/screens/WordExperienceScreen";
 import { PinGateScreen } from "./src/screens/PinGateScreen";
 import { CaregiverHomeScreen } from "./src/screens/CaregiverHomeScreen";
@@ -69,6 +71,7 @@ function Navigation() {
         {/* First run */}
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
 
         {/* Child mode */}
         <Stack.Screen name="ChildHome" component={ChildHomeScreen} />
@@ -78,6 +81,7 @@ function Navigation() {
           options={{ animation: "slide_from_right" }}
         />
         <Stack.Screen name="Favorites" component={FavoritesScreen} />
+        <Stack.Screen name="RecentlyUsed" component={RecentlyUsedScreen} />
         <Stack.Screen
           name="WordExperience"
           component={WordExperienceScreen}

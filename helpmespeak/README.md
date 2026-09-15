@@ -43,7 +43,7 @@ Built for iPhone (tested target: iPhone 16 / iOS), also runs on Android and iPad
 ## Setup & run
 
 ```bash
-cd app-phase1
+cd helpmespeak
 
 # 1. install dependencies
 npm install
@@ -76,7 +76,7 @@ manage content.
 ## Project structure
 
 ```
-app-phase1/
+helpmespeak/
 ├── App.tsx                 Navigation + providers + theme sync
 ├── index.ts                Expo entry
 ├── app.json                Expo config (iOS permissions, plugins)

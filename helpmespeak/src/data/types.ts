@@ -21,6 +21,8 @@ export interface Profile {
   id: string;
   name: string;
   avatarEmoji: string;
+  /** Local filesystem URI to a chosen profile photo; shown instead of the emoji when set. */
+  avatarUri: string | null;
   theme: ThemeId;
   spellingSpeed: SpellingSpeed;
   gridSize: number; // 2 | 3 | 4

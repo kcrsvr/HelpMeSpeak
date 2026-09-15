@@ -34,7 +34,9 @@ export function SplashScreen({ navigation }: ScreenProps<"Splash">) {
     if (!ready) return;
     const t = setTimeout(() => {
       const done = settings.onboardingComplete && settings.pinHash && profiles.length > 0;
-      navigation.replace(done ? "ChildHome" : "Onboarding");
+      // Returning users get a personalized welcome before the dashboard;
+      // first-run users go through onboarding.
+      navigation.replace(done ? "Welcome" : "Onboarding");
     }, 1400);
     return () => clearTimeout(t);
   }, [ready, settings, profiles, navigation]);

@@ -9,27 +9,27 @@ import { Word } from "../data/types";
 import { WordTile } from "../components/WordTile";
 import { ScreenProps } from "../navigation/types";
 
-// Favorites always shows a 2-column tile grid (with pictures), as requested.
+// Recently Used shows a 2-column tile grid, mirroring Favorites.
 const COLUMNS = 2;
+const RECENT_LIMIT = 20;
 
-export function FavoritesScreen({ navigation }: ScreenProps<"Favorites">) {
+export function RecentlyUsedScreen({ navigation }: ScreenProps<"RecentlyUsed">) {
   const { theme } = useTheme();
   const { activeProfile } = useApp();
   const [words, setWords] = useState<Word[]>([]);
 
   const load = useCallback(async () => {
     if (!activeProfile) return;
-    setWords(await WordRepo.listFeatured(activeProfile.id));
+    setWords(await WordRepo.listRecentlyUsed(activeProfile.id, RECENT_LIMIT));
   }, [activeProfile]);
 
-  // Reload whenever the screen regains focus (e.g. after caregiver edits).
+  // Reload on focus so a word tapped elsewhere shows up here immediately.
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load])
   );
 
-  // Build rows of COLUMNS items for a simple grid.
   const rows: Word[][] = [];
   for (let i = 0; i < words.length; i += COLUMNS) {
     rows.push(words.slice(i, i + COLUMNS));
@@ -39,14 +39,14 @@ export function FavoritesScreen({ navigation }: ScreenProps<"Favorites">) {
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <SafeAreaView edges={["top"]} style={{ backgroundColor: theme.headerBg }}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.headerText }]}>⭐ Favorites</Text>
+          <Text style={[styles.title, { color: theme.headerText }]}>🕒 Recently Used</Text>
         </View>
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.grid}>
         {words.length === 0 ? (
           <Text style={[styles.empty, { color: theme.textLight }]}>
-            No favorites yet. A caregiver can mark words as featured in Caregiver Mode.
+            Nothing here yet. Words your child taps will appear here, most recent first.
           </Text>
         ) : (
           rows.map((row, ri) => (
@@ -59,7 +59,6 @@ export function FavoritesScreen({ navigation }: ScreenProps<"Favorites">) {
                   onPress={() => navigation.navigate("WordExperience", { wordId: w.id })}
                 />
               ))}
-              {/* pad the last row so tiles keep their width */}
               {row.length < COLUMNS &&
                 Array.from({ length: COLUMNS - row.length }).map((_, i) => (
                   <View key={`pad-${i}`} style={{ flex: 1 }} />
@@ -69,7 +68,7 @@ export function FavoritesScreen({ navigation }: ScreenProps<"Favorites">) {
         )}
       </ScrollView>
 
-      {/* bottom nav — matches ChildHome, with Favorites active */}
+      {/* bottom nav — matches ChildHome, with Recent active */}
       <SafeAreaView edges={["bottom"]} style={{ backgroundColor: theme.navBg }}>
         <View style={[styles.nav, { backgroundColor: theme.navBg }]}>
           <NavTab
@@ -82,6 +81,13 @@ export function FavoritesScreen({ navigation }: ScreenProps<"Favorites">) {
           <NavTab
             icon="⭐"
             label="Favorites"
+            onPress={() => navigation.navigate("Favorites")}
+            color={theme.navActive}
+            textLight={theme.textLight}
+          />
+          <NavTab
+            icon="🕒"
+            label="Recent"
             active
             onPress={() => {}}
             color={theme.navActive}
