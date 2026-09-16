@@ -162,3 +162,10 @@ web-build/
 
 # Local scratch notes (may contain credentials) — never commit
 notes.md
+
+# Working docs / prototype kept local, not published
+HelpMeSpeak.html
+HelpMeSpeak.md
+TODO.md
+design.md
+roadmap.md
