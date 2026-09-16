@@ -67,7 +67,7 @@ update this policy and describe the change here before that feature is enabled.
 
 If you have questions about this policy, contact us at:
 
-**Email:** [ADD YOUR CONTACT EMAIL HERE]
+**Email:** sreevidya.r@live.com
 
 ---
 

@@ -19,6 +19,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.helpmespeak.app",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSMicrophoneUsageDescription": "HelpMeSpeak needs the microphone so caregivers can record how each word sounds.",
         "NSPhotoLibraryUsageDescription": "HelpMeSpeak needs photo access so caregivers can add familiar pictures for each word.",
         "NSCameraUsageDescription": "HelpMeSpeak needs the camera so caregivers can take a photo for a word."

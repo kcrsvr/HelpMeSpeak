@@ -11,3 +11,9 @@ android/
 
 # env
 .env*.local
+
+# Apple / App Store Connect secrets — never commit
+secrets/
+*.p8
+*.mobileprovision
+*.p12
