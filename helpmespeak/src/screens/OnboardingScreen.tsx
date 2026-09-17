@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -95,6 +97,10 @@ export function OnboardingScreen({ navigation }: ScreenProps<"Onboarding">) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
       {/* progress dots */}
       <View style={styles.progress}>
         {[0, 1, 2, 3].map((i) => (
@@ -162,6 +168,7 @@ export function OnboardingScreen({ navigation }: ScreenProps<"Onboarding">) {
           />
         )}
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

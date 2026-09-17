@@ -2,6 +2,8 @@ import React, { useCallback, useState } from "react";
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -167,7 +169,15 @@ export function ManageProfilesScreen({ navigation }: ScreenProps<"ManageProfiles
         </View>
       </SafeAreaView>
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
         {profiles.map((p) => {
           const active = p.id === activeProfile?.id;
           const isEditing = editingId === p.id;
@@ -347,7 +357,8 @@ export function ManageProfilesScreen({ navigation }: ScreenProps<"ManageProfiles
         ) : (
           <Text style={styles.limit}>Maximum of {MAX_PROFILES} profiles reached.</Text>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -364,7 +375,7 @@ const styles = StyleSheet.create({
   },
   headerBtn: { color: "#FFF", fontWeight: "700", fontSize: 15, minWidth: 60 },
   headerTitle: { color: "#FFF", fontSize: 17, fontWeight: "900" },
-  body: { padding: 20, gap: 12 },
+  body: { padding: 20, paddingBottom: 60, gap: 12 },
 
   row: {
     flexDirection: "row",

@@ -2,6 +2,8 @@ import React, { useCallback, useState } from "react";
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -144,7 +146,15 @@ export function ManageCategoriesScreen({ navigation }: ScreenProps<"ManageCatego
         </View>
       </SafeAreaView>
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
         {/* ---- New category form ---- */}
         <View style={styles.addCard}>
           <Text style={styles.addTitle}>NEW CATEGORY</Text>
@@ -238,7 +248,8 @@ export function ManageCategoriesScreen({ navigation }: ScreenProps<"ManageCatego
             </Pressable>
           </Pressable>
         ))}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -255,7 +266,7 @@ const styles = StyleSheet.create({
   },
   headerBtn: { color: "#FFF", fontWeight: "700", fontSize: 15, minWidth: 60 },
   headerTitle: { color: "#FFF", fontSize: 17, fontWeight: "900" },
-  body: { padding: 20, gap: 12 },
+  body: { padding: 20, paddingBottom: 60, gap: 12 },
 
   addCard: { backgroundColor: CG.card, borderRadius: 16, padding: 16, gap: 14, marginBottom: 8 },
   addTitle: { color: CG.accent, fontWeight: "800", fontSize: 13, letterSpacing: 1 },

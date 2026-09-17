@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -232,7 +234,15 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
         <View style={[styles.progressFill, { width: `${progress}%` }]} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         {step === 0 && (
           <>
             <Text style={styles.stepTitle}>Add a picture</Text>
@@ -425,22 +435,23 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
                   accessibilityLabel="Save and add another"
                   style={[styles.footerBtn, styles.footerSecondary, (!canSave || saving) && { opacity: 0.5 }]}
                 >
-                  <Text style={styles.footerSecondaryText}>Save & Add</Text>
+                  <Text style={styles.footerSecondaryText}>Save</Text>
                 </Pressable>
               )}
               <Pressable
                 disabled={!canSave || saving}
                 onPress={() => save(false)}
                 accessibilityRole="button"
-                accessibilityLabel="Save and done"
+                accessibilityLabel="Save and exit"
                 style={[styles.footerBtn, styles.footerPrimary, (!canSave || saving) && { opacity: 0.5 }]}
               >
-                <Text style={styles.footerPrimaryText}>{saving ? "Saving…" : "Save"}</Text>
+                <Text style={styles.footerPrimaryText}>{saving ? "Saving…" : "Save & Exit"}</Text>
               </Pressable>
             </View>
           )}
         </View>
       </SafeAreaView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

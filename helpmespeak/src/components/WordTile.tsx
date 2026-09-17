@@ -26,7 +26,7 @@ export function WordTile({ word, onPress, columns = 2 }: WordTileProps) {
       ]}
     >
       {word.photoUri ? (
-        <Image source={{ uri: word.photoUri }} style={styles.photo} resizeMode="cover" />
+        <Image testID="word-photo" source={{ uri: word.photoUri }} style={styles.photo} resizeMode="cover" />
       ) : (
         <Text style={[styles.emoji, { fontSize: emojiSize }]}>{word.emoji}</Text>
       )}
