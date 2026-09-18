@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View, Easing } from "react-native";
+import { Animated, Image, StyleSheet, Text, View, Easing } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
 import { useApp } from "../state/AppContext";
 import { ScreenProps } from "../navigation/types";
@@ -43,10 +43,13 @@ export function SplashScreen({ navigation }: ScreenProps<"Splash">) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.primary }]}>
-      <Animated.Text style={[styles.icon, { transform: [{ scale: pulse }] }]}>
-        🗣️
-      </Animated.Text>
-      <Text style={styles.title}>HelpMeSpeak</Text>
+      <Animated.Image
+        source={require("../assets/logo.png")}
+        style={[styles.logo, { transform: [{ scale: pulse }] }]}
+        resizeMode="contain"
+        accessibilityRole="image"
+        accessibilityLabel="HelpMeSpeak"
+      />
       <Text style={styles.subtitle}>Every child has something to say</Text>
     </View>
   );
@@ -54,7 +57,6 @@ export function SplashScreen({ navigation }: ScreenProps<"Splash">) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 20 },
-  icon: { fontSize: 80 },
-  title: { fontSize: 36, fontWeight: "900", color: "#FFFFFF", letterSpacing: -1 },
+  logo: { width: 220, height: 220 },
   subtitle: { fontSize: 17, fontWeight: "600", color: "rgba(255,255,255,0.85)" },
 });

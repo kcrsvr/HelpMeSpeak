@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
@@ -52,6 +52,13 @@ function Navigation() {
   if (!ready) {
     return (
       <View style={[styles.loading, { backgroundColor: theme.bg }]}>
+        <Image
+          source={require("./src/assets/logo.png")}
+          style={styles.loadingLogo}
+          resizeMode="contain"
+          accessibilityRole="image"
+          accessibilityLabel="HelpMeSpeak"
+        />
         <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
@@ -139,5 +146,6 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
+  loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 28 },
+  loadingLogo: { width: 160, height: 160 },
 });
