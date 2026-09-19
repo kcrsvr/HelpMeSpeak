@@ -140,7 +140,6 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
       } catch {
         // optional
       }
-      WordRepo.recordUsage(w.id).catch(() => {});
     },
     [scale, ttsEnabled, animationEnabled, letterMs]
   );
@@ -151,7 +150,15 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
       const w = await WordRepo.get(wordId);
       if (!active) return;
       setWord(w);
-      if (w) run(w);
+      if (w) {
+        // Record usage as soon as the word is opened. Opening a word IS using
+        // it, so this must not depend on the child watching the full animation
+        // + spelling sequence (which is easy to leave early — previously the
+        // recordUsage call sat at the tail of run() and was skipped whenever
+        // the screen unmounted first, so Recently Used never populated).
+        WordRepo.recordUsage(w.id).catch(() => {});
+        run(w);
+      }
     })();
     return () => {
       active = false;

@@ -43,6 +43,12 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
   const [isFeatured, setIsFeatured] = useState(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
 
+  // inline "create a new category" form (shown on the Category step)
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatEmoji, setNewCatEmoji] = useState("📁");
+  const [creatingCat, setCreatingCat] = useState(false);
+
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -169,6 +175,60 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
   const clearRecording = async () => {
     await deleteMedia(audioUri);
     setAudioUri(null);
+  };
+
+  // Create a brand-new category right here in the wizard, then select it.
+  const createCategory = async () => {
+    if (!activeProfile) return;
+    const name = newCatName.trim();
+    if (!name) {
+      Alert.alert("Name needed", "Give the new category a name.");
+      return;
+    }
+    setCreatingCat(true);
+    try {
+      const cat = await CategoryRepo.create({
+        profileId: activeProfile.id,
+        name,
+        emoji: newCatEmoji || "📁",
+        color: "#4A90D9",
+      });
+      setCategories((prev) => [...prev, cat]);
+      setCategoryId(cat.id);
+      // reset & hide the inline form
+      setNewCatName("");
+      setNewCatEmoji("📁");
+      setShowNewCategory(false);
+    } finally {
+      setCreatingCat(false);
+    }
+  };
+
+  // Delete the word being edited (with confirmation), cleaning up its media.
+  const deleteWord = () => {
+    if (!editingId) return;
+    Alert.alert(
+      "Delete word?",
+      `"${wordText.trim() || "This word"}" will be removed. This can't be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setSaving(true);
+            try {
+              await deleteMedia(photoUri);
+              await deleteMedia(audioUri);
+              await WordRepo.delete(editingId);
+              navigation.goBack();
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const canSave = wordText.trim().length > 0 && !!categoryId;
@@ -366,7 +426,58 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
                   </Pressable>
                 );
               })}
+              {/* Create-a-new-category chip */}
+              <Pressable
+                onPress={() => setShowNewCategory((v) => !v)}
+                accessibilityRole="button"
+                accessibilityLabel="Create a new category"
+                style={[styles.chip, styles.newCatChip]}
+              >
+                <Text style={[styles.chipText, { color: CG.accent }]}>
+                  {showNewCategory ? "✕ Cancel" : "＋ New Category"}
+                </Text>
+              </Pressable>
             </View>
+
+            {showNewCategory && (
+              <View style={styles.newCatForm}>
+                <Text style={styles.fieldLabel}>New category</Text>
+                <View style={styles.newCatRow}>
+                  <TextInput
+                    style={styles.newCatEmojiInput}
+                    value={newCatEmoji}
+                    onChangeText={(t) => setNewCatEmoji(t.slice(0, 2) || "📁")}
+                    accessibilityLabel="New category emoji"
+                  />
+                  <TextInput
+                    style={styles.newCatNameInput}
+                    value={newCatName}
+                    onChangeText={setNewCatName}
+                    placeholder="Category name"
+                    placeholderTextColor="#666"
+                    autoCapitalize="words"
+                    maxLength={20}
+                    returnKeyType="done"
+                    onSubmitEditing={createCategory}
+                    accessibilityLabel="New category name"
+                  />
+                </View>
+                <Pressable
+                  disabled={!newCatName.trim() || creatingCat}
+                  onPress={createCategory}
+                  accessibilityRole="button"
+                  accessibilityLabel="Create category"
+                  style={[
+                    styles.createCatBtn,
+                    (!newCatName.trim() || creatingCat) && { opacity: 0.5 },
+                  ]}
+                >
+                  <Text style={styles.createCatBtnText}>
+                    {creatingCat ? "Creating…" : "Create & Select"}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </>
         )}
 
@@ -399,6 +510,18 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
                 <View style={[styles.toggleKnob, isFeatured && { left: 25 }]} />
               </View>
             </Pressable>
+
+            {editingId && (
+              <Pressable
+                onPress={deleteWord}
+                disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel="Delete this word"
+                style={[styles.deleteWordBtn, saving && { opacity: 0.5 }]}
+              >
+                <Text style={styles.deleteWordText}>🗑 Delete Word</Text>
+              </Pressable>
+            )}
           </>
         )}
       </ScrollView>
@@ -549,6 +672,64 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   chipText: { color: "#FFF", fontWeight: "700" },
+  newCatChip: {
+    borderColor: CG.accent,
+    borderStyle: "dashed",
+    backgroundColor: "rgba(187,134,252,0.08)",
+  },
+  newCatForm: {
+    backgroundColor: CG.card,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 14,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "rgba(187,134,252,0.3)",
+  },
+  newCatRow: { flexDirection: "row", gap: 10 },
+  newCatEmojiInput: {
+    width: 60,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    textAlign: "center",
+    fontSize: 24,
+    color: "#FFF",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  newCatNameInput: {
+    flex: 1,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    paddingHorizontal: 14,
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  createCatBtn: {
+    backgroundColor: CG.accent,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  createCatBtnText: { color: CG.bg, fontWeight: "800", fontSize: 15 },
+  deleteWordBtn: {
+    borderWidth: 2,
+    borderColor: "#E74C3C",
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+    minHeight: 56,
+  },
+  deleteWordText: { color: "#E74C3C", fontWeight: "800", fontSize: 16 },
   reviewCard: {
     backgroundColor: CG.card,
     borderRadius: 20,

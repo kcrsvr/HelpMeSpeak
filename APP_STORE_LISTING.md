@@ -20,8 +20,12 @@ Words, pictures & speech
 **Primary Category:** Education
 **Secondary Category:** (optional) Health & Fitness — or leave blank
 
-> If you want the app in the Kids sub-category, set it in the App Store tab under
-> "This app is made for kids" and choose the age band (see Age Rating below).
+> DECISION: Do NOT opt into the Kids Category for this submission. Leave the
+> "This app is made for kids" setting OFF in the App Store tab. The app targets
+> Education / 4+ (see Age Rating below). Rationale: the app collects no data, has
+> no accounts, ads, tracking, or external links, so the standard Education/4+
+> rating is the lower-risk path to approval. You can opt into "Made for Kids"
+> in a later version if desired.
 
 ---
 
@@ -122,9 +126,11 @@ Answer **None / No** to every content category:
 
 Expected result: **Ages 4+**.
 
-"Made for Kids" (optional): if you opt in, choose the **Ages 5 and under** or
-**6–8** band as appropriate. Note: Kids-category apps must have no external links
-out of the app without a parental gate — your PIN gate covers the caregiver area.
+"Made for Kids": **DO NOT opt in for this submission.** Leave the "This app is
+made for kids" toggle OFF. Target the standard **Education / 4+** rating. (The app
+has no external links, ads, tracking, or data collection, so it clears the Kids
+rules anyway — but staying out of the Kids Category keeps the review bar lighter
+for a first approval. Revisit in a future version if you want the Kids badge.)
 
 ---
 
@@ -155,14 +161,24 @@ save screenshots at the correct resolution.
 ## Review Notes (App Review Information → Notes)
 ```
 HelpMeSpeak is a local-only communication aid for non-verbal children. There is
-no login or account. To reach Caregiver mode, tap the lock icon and enter the PIN
-set during onboarding; for review, the PIN is: [ADD THE PIN YOU SET].
+no login and no account.
 
-The app requests microphone, camera, and photo access only so a caregiver can
-optionally record a word or add a picture. All permissions are optional and the
-app functions if they are denied. No data leaves the device.
+On first launch the app runs a short onboarding where YOU (the reviewer) set a
+4-digit Caregiver PIN of your choosing. That same PIN unlocks Caregiver Mode:
+from the child home screen, tap the lock icon and enter the PIN you set during
+onboarding. There is no preset password to supply.
+
+Caregiver Mode is where a caregiver can add words with photos and voice
+recordings, organize categories, and manage profiles. The app requests
+microphone, camera, and photo access only for these optional actions. All
+permissions are optional and the app functions fully if they are denied. No data
+ever leaves the device.
 ```
 
-> ⚠️ Replace [ADD THE PIN YOU SET] with the actual caregiver PIN so the reviewer
-> can get into caregiver mode. Kids-category apps are tested thoroughly here.
+> Note: No PIN needs to be provided in these notes. On a clean install the app
+> always starts at onboarding, where the reviewer sets their own PIN — there is no
+> seeded data or preset PIN (verified in code: onboardingComplete/pinHash default
+> to false/null and are only set once onboarding is completed). The notes above
+> simply explain that the onboarding PIN is the same one that unlocks Caregiver
+> Mode, so the reviewer isn't left hunting for a password.
 ```

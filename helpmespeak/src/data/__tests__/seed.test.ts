@@ -2,7 +2,7 @@ import { SEED_CATEGORIES } from "../seed";
 
 describe("SEED_CATEGORIES", () => {
   it("contains the expected number of starter categories", () => {
-    expect(SEED_CATEGORIES.length).toBe(9);
+    expect(SEED_CATEGORIES.length).toBe(19);
   });
 
   it("has a unique key for every category", () => {
