@@ -8,6 +8,7 @@ import { SEED_CATEGORIES } from "./seed";
 import {
   AppSettings,
   Category,
+  MediaType,
   Profile,
   SpellingSpeed,
   Word,
@@ -22,6 +23,18 @@ function toBool(v: number): boolean {
 }
 function fromBool(v: boolean): number {
   return v ? 1 : 0;
+}
+
+/**
+ * Derive the visual media kind from the URIs present. Video wins over a photo
+ * (the photo, when also present, serves as the still poster), and emoji is the
+ * fallback when neither is set. Keeps photoType/mediaType consistent with the
+ * stored files, matching how audioType is derived from audioUri.
+ */
+function deriveMediaType(videoUri: string | null, photoUri: string | null): MediaType {
+  if (videoUri) return "video";
+  if (photoUri) return "photo";
+  return "emoji";
 }
 
 function mapProfile(r: any): Profile {
@@ -64,6 +77,8 @@ function mapWord(r: any): Word {
     emoji: r.emoji,
     photoUri: r.photoUri ?? null,
     photoType: r.photoType,
+    videoUri: r.videoUri ?? null,
+    mediaType: (r.mediaType as MediaType) ?? deriveMediaType(r.videoUri ?? null, r.photoUri ?? null),
     audioUri: r.audioUri ?? null,
     audioType: r.audioType,
     isFeatured: toBool(r.isFeatured),
@@ -195,8 +210,8 @@ export const ProfileRepo = {
         for (const w of cat.words) {
           await db.runAsync(
             `INSERT INTO words
-              (id, profileId, categoryId, word, emoji, photoUri, photoType, audioUri, audioType, isFeatured, "order", usageCount, lastUsedAt, createdAt, updatedAt)
-             VALUES (?, ?, ?, ?, ?, NULL, 'emoji', NULL, 'tts', ?, ?, 0, NULL, ?, ?)`,
+              (id, profileId, categoryId, word, emoji, photoUri, photoType, videoUri, mediaType, audioUri, audioType, isFeatured, "order", usageCount, lastUsedAt, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, NULL, 'emoji', NULL, 'emoji', NULL, 'tts', ?, ?, 0, NULL, ?, ?)`,
             [
               newId("word"),
               profileId,
@@ -348,8 +363,12 @@ export const WordRepo = {
 
   async listFeatured(profileId: string): Promise<Word[]> {
     const db = await getDb();
+    // Newest featured word first, so a word just marked as featured in Caregiver
+    // Mode appears at the front of the Featured row. `updatedAt` (not createdAt)
+    // is used so toggling an existing word to featured also brings it forward.
+    // Ties fall back to usage so popular words stay ahead of unused ones.
     const rows = await db.getAllAsync(
-      'SELECT * FROM words WHERE profileId = ? AND isFeatured = 1 ORDER BY usageCount DESC, "order" ASC',
+      "SELECT * FROM words WHERE profileId = ? AND isFeatured = 1 ORDER BY updatedAt DESC, usageCount DESC",
       [profileId]
     );
     return rows.map(mapWord);
@@ -380,6 +399,7 @@ export const WordRepo = {
     word: string;
     emoji?: string;
     photoUri?: string | null;
+    videoUri?: string | null;
     audioUri?: string | null;
     isFeatured?: boolean;
   }): Promise<Word> {
@@ -397,6 +417,8 @@ export const WordRepo = {
       emoji: input.emoji || "🔤",
       photoUri: input.photoUri ?? null,
       photoType: input.photoUri ? "real" : "emoji",
+      videoUri: input.videoUri ?? null,
+      mediaType: deriveMediaType(input.videoUri ?? null, input.photoUri ?? null),
       audioUri: input.audioUri ?? null,
       audioType: input.audioUri ? "recorded" : "tts",
       isFeatured: !!input.isFeatured,
@@ -408,8 +430,8 @@ export const WordRepo = {
     };
     await db.runAsync(
       `INSERT INTO words
-        (id, profileId, categoryId, word, emoji, photoUri, photoType, audioUri, audioType, isFeatured, "order", usageCount, lastUsedAt, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
+        (id, profileId, categoryId, word, emoji, photoUri, photoType, videoUri, mediaType, audioUri, audioType, isFeatured, "order", usageCount, lastUsedAt, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
       [
         w.id,
         w.profileId,
@@ -418,6 +440,8 @@ export const WordRepo = {
         w.emoji,
         w.photoUri,
         w.photoType,
+        w.videoUri,
+        w.mediaType,
         w.audioUri,
         w.audioType,
         fromBool(w.isFeatured),
@@ -434,13 +458,14 @@ export const WordRepo = {
     const existing = await this.get(id);
     if (!existing) return;
     const next = { ...existing, ...patch, updatedAt: now() };
-    // keep photoType/audioType consistent with the URIs
+    // keep photoType/mediaType/audioType consistent with the URIs
     next.photoType = next.photoUri ? "real" : "emoji";
+    next.mediaType = deriveMediaType(next.videoUri, next.photoUri);
     next.audioType = next.audioUri ? "recorded" : "tts";
     await db.runAsync(
       `UPDATE words SET
         categoryId = ?, word = ?, emoji = ?, photoUri = ?, photoType = ?,
-        audioUri = ?, audioType = ?, isFeatured = ?, "order" = ?, updatedAt = ?
+        videoUri = ?, mediaType = ?, audioUri = ?, audioType = ?, isFeatured = ?, "order" = ?, updatedAt = ?
        WHERE id = ?`,
       [
         next.categoryId,
@@ -448,6 +473,8 @@ export const WordRepo = {
         next.emoji,
         next.photoUri,
         next.photoType,
+        next.videoUri,
+        next.mediaType,
         next.audioUri,
         next.audioType,
         fromBool(next.isFeatured),

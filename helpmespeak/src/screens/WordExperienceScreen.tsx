@@ -10,11 +10,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { useTheme } from "../theme/ThemeContext";
 import { useApp } from "../state/AppContext";
 import { WordRepo } from "../data/repositories";
 import { SPELLING_SPEED_MS, Word } from "../data/types";
-import { playApplause, playWord, speakLetter, stopWord } from "../utils/audio";
+import { playApplause, playWord, primeSpeech, speakLetter, stopWord } from "../utils/audio";
 import { Confetti } from "../components/Confetti";
 import { ScreenProps } from "../navigation/types";
 
@@ -63,6 +64,81 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
   const ttsEnabled = activeProfile?.ttsEnabled ?? true;
   const letterMs = SPELLING_SPEED_MS[activeProfile?.spellingSpeed ?? "medium"];
 
+  // Show the video only when the word has one AND motion is allowed for this
+  // child. When animation is disabled we fall back to the still photo (if any)
+  // or the emoji, so the sensory setting is respected.
+  const showVideo = !!word?.videoUri && animationEnabled;
+
+  // A single muted, looping player for the word's clip. The video carries NO
+  // audio of its own — the app owns the voice (playWord/TTS) — so we always
+  // mute it. Source is set imperatively once the word loads.
+  const videoPlayer = useVideoPlayer(null, (player) => {
+    player.muted = true;
+    player.loop = true;
+    // The clip is silent and must NOT take over the audio session, or it
+    // interrupts the spoken word/letters (e.g. clipping the first letter's
+    // audio). "mixWithOthers" lets it coexist with the TTS/recorded voice.
+    player.audioMixingMode = "mixWithOthers";
+  });
+
+  // Restart the clip from the beginning and play. Used on first load and again
+  // whenever the child taps "Again?" so the living picture visibly replays.
+  const restartVideo = useCallback(() => {
+    if (!showVideo || !word?.videoUri) return;
+    try {
+      videoPlayer.muted = true;
+      videoPlayer.loop = true;
+      videoPlayer.audioMixingMode = "mixWithOthers";
+      videoPlayer.currentTime = 0;
+      videoPlayer.play();
+    } catch {
+      // playback is a non-essential enhancement; ignore failures
+    }
+  }, [showVideo, word?.videoUri, videoPlayer]);
+
+  // Load the source when the word/visibility changes, then start looping.
+  useEffect(() => {
+    if (showVideo && word?.videoUri) {
+      try {
+        videoPlayer.muted = true;
+        videoPlayer.loop = true;
+        videoPlayer.audioMixingMode = "mixWithOthers";
+        videoPlayer.replace({ uri: word.videoUri });
+        videoPlayer.play();
+      } catch {
+        // ignore
+      }
+    } else {
+      try {
+        videoPlayer.pause();
+      } catch {
+        // ignore
+      }
+    }
+  }, [showVideo, word?.videoUri, videoPlayer]);
+
+  // Belt-and-suspenders loop: some platforms/clips don't honour `loop` reliably
+  // after `replace()`, so when playback reaches the end we seek back to the
+  // start and keep it going — the "living picture" never stops.
+  useEffect(() => {
+    if (!showVideo) return undefined;
+    const sub = videoPlayer.addListener("playToEnd", () => {
+      try {
+        videoPlayer.currentTime = 0;
+        videoPlayer.play();
+      } catch {
+        // ignore
+      }
+    });
+    return () => {
+      try {
+        sub?.remove?.();
+      } catch {
+        // ignore
+      }
+    };
+  }, [showVideo, videoPlayer]);
+
   const clearTimers = () => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
@@ -109,7 +185,12 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
       await wait(150);
       if (cancelled.current) return;
 
-      // Phase 3 — spelling, letter by letter
+      // Phase 3 — spelling, letter by letter.
+      // Ensure the TTS voice is resolved BEFORE the first letter so its audio
+      // starts in lockstep with the highlight (otherwise first-time voice
+      // resolution latency clipped/desynced the first letter on a fresh word).
+      await primeSpeech();
+      if (cancelled.current) return;
       setPhase("spelling");
       const letters = w.word.replace(/\s+/g, "").split("");
       for (let i = 0; i < letters.length; i++) {
@@ -147,6 +228,10 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
   useEffect(() => {
     let active = true;
     (async () => {
+      // Warm up TTS immediately so the first spelled letter's audio isn't
+      // delayed by first-time voice resolution (which desynced "H" from its
+      // highlight on the very first word). Fire-and-forget; run() also awaits it.
+      primeSpeech().catch(() => {});
       const w = await WordRepo.get(wordId);
       if (!active) return;
       setWord(w);
@@ -184,6 +269,7 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
     clearTimers();
     stopWord();
     resetPractice();
+    restartVideo(); // replay the living picture from the top
     if (word) run(word);
   };
 
@@ -206,6 +292,7 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
     setFlashIndex(-1);
     setPractice(true);
     setPhase("celebrate"); // keep the letters + buttons visible
+    restartVideo(); // keep the living picture looping during practice
   };
 
   // Handle a tap on a letter tile during practice.
@@ -274,8 +361,30 @@ export function WordExperienceScreen({ route, navigation }: ScreenProps<"WordExp
       </SafeAreaView>
 
       <View style={styles.center} onLayout={onCenterLayout}>
-        {/* image / emoji — sized to the device and word length */}
-        {word.photoUri ? (
+        {/* video / image / emoji — sized to the device and word length */}
+        {showVideo ? (
+          <Animated.View
+            style={[
+              styles.photoBorder,
+              {
+                width: dims.imageSize,
+                height: dims.imageSize,
+                borderRadius: dims.imageSize * 0.16,
+                overflow: "hidden",
+                backgroundColor: "rgba(255,255,255,0.2)",
+                transform: [{ scale }],
+              },
+            ]}
+          >
+            <VideoView
+              player={videoPlayer}
+              style={styles.videoFill}
+              contentFit="cover"
+              nativeControls={false}
+              allowsPictureInPicture={false}
+            />
+          </Animated.View>
+        ) : word.photoUri ? (
           <Animated.Image
             source={{ uri: word.photoUri }}
             style={[
@@ -667,6 +776,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.2)",
     resizeMode: "cover",
   },
+  // fills the bordered wrapper for the video player (border/rounding live on the wrapper)
+  videoFill: { width: "100%", height: "100%" },
   // thick white border framing the picture
   photoBorder: {
     borderWidth: 6,

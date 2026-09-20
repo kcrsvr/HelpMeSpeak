@@ -9,6 +9,13 @@ import { ThemeId } from "../theme/themes";
 export type SpellingSpeed = "slow" | "medium" | "fast";
 export type PhotoType = "real" | "emoji";
 export type AudioType = "recorded" | "tts";
+/**
+ * The kind of visual a word shows, in priority order:
+ *  - "video" → a short muted looping clip (videoUri set)
+ *  - "photo" → a still picture (photoUri set)
+ *  - "emoji" → the fallback emoji glyph
+ */
+export type MediaType = "video" | "photo" | "emoji";
 
 /** Milliseconds per letter during the spelling animation. */
 export const SPELLING_SPEED_MS: Record<SpellingSpeed, number> = {
@@ -51,11 +58,19 @@ export interface Word {
   profileId: string;
   categoryId: string;
   word: string;
-  /** Emoji used when photoType === "emoji". */
+  /** Emoji used when mediaType === "emoji". */
   emoji: string;
   /** Local filesystem URI when photoType === "real". */
   photoUri: string | null;
   photoType: PhotoType;
+  /** Local filesystem URI to a short muted looping video clip, when set. */
+  videoUri: string | null;
+  /**
+   * Which visual the word shows, derived from the presence of media:
+   * video > photo > emoji. Video and photo can coexist (photo acts as the
+   * poster/still for grids and the animation-disabled path).
+   */
+  mediaType: MediaType;
   /** Local filesystem URI to a recorded audio clip. */
   audioUri: string | null;
   audioType: AudioType;

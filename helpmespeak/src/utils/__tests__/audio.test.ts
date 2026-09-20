@@ -54,6 +54,19 @@ describe("audio utils", () => {
       expect(Speech.speak).not.toHaveBeenCalled();
     });
 
+    it("does not call Speech.stop after a recorded clip finishes (would clip the next spelled letter)", async () => {
+      const { audio, Speech } = loadAudio();
+      // Regression: a recorded word (e.g. "Home") is immediately followed by the
+      // spelled letters via TTS. An async Speech.stop() teardown here raced the
+      // first letter's Speech.speak(), clipping the start of "H". The recorded
+      // branch must release only the audio player, never touch TTS.
+      await audio.playWord({ word: "Home", audioUri: "file:///home.m4a", ttsEnabled: true });
+      // Exactly one stop — the guard at the START of playWord that clears any
+      // prior audio. Crucially there is NO second stop after the clip finishes,
+      // which is what used to race and clip the first spelled letter.
+      expect(Speech.stop).toHaveBeenCalledTimes(1);
+    });
+
     it("falls back to a bundled voice-pack clip when no audioUri but a clip exists", async () => {
       const { audio, expoAudio, Speech, voice } = loadAudio();
       voice.voiceClip.mockReturnValue(42); // a bundled asset module id

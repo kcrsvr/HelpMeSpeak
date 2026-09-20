@@ -61,6 +61,8 @@ export async function initSchema(): Promise<void> {
       emoji      TEXT NOT NULL DEFAULT '🔤',
       photoUri   TEXT,
       photoType  TEXT NOT NULL DEFAULT 'emoji',
+      videoUri   TEXT,
+      mediaType  TEXT NOT NULL DEFAULT 'emoji',
       audioUri   TEXT,
       audioType  TEXT NOT NULL DEFAULT 'tts',
       isFeatured INTEGER NOT NULL DEFAULT 0,
@@ -93,6 +95,19 @@ export async function initSchema(): Promise<void> {
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   await addColumnIfMissing(db, "categories", "imageUri", "TEXT");
   await addColumnIfMissing(db, "profiles", "avatarUri", "TEXT");
+  await addColumnIfMissing(db, "words", "videoUri", "TEXT");
+  await addColumnIfMissing(db, "words", "mediaType", "TEXT NOT NULL DEFAULT 'emoji'");
+  // Backfill mediaType for rows created before the column existed, deriving it
+  // from the media already present (video > photo > emoji).
+  await db.execAsync(`
+    UPDATE words SET mediaType =
+      CASE
+        WHEN videoUri IS NOT NULL AND videoUri <> '' THEN 'video'
+        WHEN photoUri IS NOT NULL AND photoUri <> '' THEN 'photo'
+        ELSE 'emoji'
+      END
+    WHERE mediaType IS NULL OR mediaType = '' OR mediaType = 'emoji';
+  `);
 }
 
 async function addColumnIfMissing(

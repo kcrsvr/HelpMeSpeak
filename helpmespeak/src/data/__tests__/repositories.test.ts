@@ -216,6 +216,132 @@ describe("WordRepo", () => {
     expect(richWord.audioType).toBe("recorded");
   });
 
+  it("derives mediaType with video > photo > emoji precedence", async () => {
+    const p = await makeProfile();
+    const cat = (await CategoryRepo.listForProfile(p.id))[0];
+
+    const emojiWord = await WordRepo.create({
+      profileId: p.id,
+      categoryId: cat.id,
+      word: "EmojiMedia",
+    });
+    expect(emojiWord.mediaType).toBe("emoji");
+    expect(emojiWord.videoUri).toBeNull();
+
+    const photoWord = await WordRepo.create({
+      profileId: p.id,
+      categoryId: cat.id,
+      word: "PhotoMedia",
+      photoUri: "file:///documents/media/photo_a.jpg",
+    });
+    expect(photoWord.mediaType).toBe("photo");
+
+    const videoWord = await WordRepo.create({
+      profileId: p.id,
+      categoryId: cat.id,
+      word: "VideoMedia",
+      videoUri: "file:///documents/media/video_a.mp4",
+    });
+    expect(videoWord.mediaType).toBe("video");
+
+    // video wins even when a still photo is also present (photo acts as poster)
+    const bothWord = await WordRepo.create({
+      profileId: p.id,
+      categoryId: cat.id,
+      word: "BothMedia",
+      photoUri: "file:///documents/media/photo_b.jpg",
+      videoUri: "file:///documents/media/video_b.mp4",
+    });
+    expect(bothWord.mediaType).toBe("video");
+    expect(bothWord.photoType).toBe("real");
+  });
+
+  it("re-derives mediaType when video is added and removed on update", async () => {
+    const p = await makeProfile();
+    const cat = (await CategoryRepo.listForProfile(p.id))[0];
+    const w = await WordRepo.create({
+      profileId: p.id,
+      categoryId: cat.id,
+      word: "VideoToggle",
+    });
+    expect(w.mediaType).toBe("emoji");
+
+    await WordRepo.update(w.id, { videoUri: "file:///documents/media/video_c.mp4" });
+    expect((await WordRepo.get(w.id))?.mediaType).toBe("video");
+
+    await WordRepo.update(w.id, { videoUri: null });
+    expect((await WordRepo.get(w.id))?.mediaType).toBe("emoji");
+  });
+
+  it("puts a newly featured word at the FRONT of listFeatured", async () => {
+    const p = await makeProfile();
+    const cat = (await CategoryRepo.listForProfile(p.id))[0];
+
+    // Advance the clock between writes so updatedAt is strictly increasing and
+    // ordering is deterministic (now() is millisecond-resolution). Start above
+    // the real "now" used to seed the profile, so these words are truly newer.
+    let clock = Date.now() + 1_000_000;
+    const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => (clock += 1000));
+
+    try {
+      const first = await WordRepo.create({
+        profileId: p.id,
+        categoryId: cat.id,
+        word: "AlphaFeatured",
+        isFeatured: true,
+      });
+      const second = await WordRepo.create({
+        profileId: p.id,
+        categoryId: cat.id,
+        word: "BetaFeatured",
+        isFeatured: true,
+      });
+
+      // Newest featured word is first.
+      let featuredIds = (await WordRepo.listFeatured(p.id)).map((w) => w.id);
+      expect(featuredIds[0]).toBe(second.id);
+      expect(featuredIds).toContain(first.id);
+
+      // Toggling an existing word to featured also brings it to the front.
+      const existing = (await WordRepo.listForProfile(p.id)).find((w) => !w.isFeatured)!;
+      await WordRepo.update(existing.id, { isFeatured: true });
+      featuredIds = (await WordRepo.listFeatured(p.id)).map((w) => w.id);
+      expect(featuredIds[0]).toBe(existing.id);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("does not reshuffle featured order when a word is merely used", async () => {
+    const p = await makeProfile();
+    const cat = (await CategoryRepo.listForProfile(p.id))[0];
+
+    let clock = Date.now() + 2_000_000;
+    const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => (clock += 1000));
+    try {
+      const older = await WordRepo.create({
+        profileId: p.id,
+        categoryId: cat.id,
+        word: "OlderFeatured",
+        isFeatured: true,
+      });
+      const newer = await WordRepo.create({
+        profileId: p.id,
+        categoryId: cat.id,
+        word: "NewerFeatured",
+        isFeatured: true,
+      });
+
+      // Using the older word bumps usageCount/lastUsedAt but not updatedAt, so
+      // the newest-first featured order is preserved (usage doesn't reorder it).
+      await WordRepo.recordUsage(older.id);
+      const featuredIds = (await WordRepo.listFeatured(p.id)).map((w) => w.id);
+      expect(featuredIds[0]).toBe(newer.id);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it("trims the word label on create", async () => {
     const p = await makeProfile();
     const cat = (await CategoryRepo.listForProfile(p.id))[0];

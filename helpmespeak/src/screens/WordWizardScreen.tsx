@@ -22,7 +22,14 @@ import {
 } from "expo-audio";
 import { useApp } from "../state/AppContext";
 import { CategoryRepo, WordRepo } from "../data/repositories";
-import { persistAudio, persistPhoto, deleteMedia } from "../data/media";
+import {
+  persistAudio,
+  persistPhoto,
+  persistVideo,
+  generateVideoPoster,
+  deleteMedia,
+} from "../data/media";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { Category } from "../data/types";
 import { ScreenProps } from "../navigation/types";
 
@@ -37,6 +44,7 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
   const [categories, setCategories] = useState<Category[]>([]);
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
   const [emoji, setEmoji] = useState("🔤");
   const [wordText, setWordText] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -69,6 +77,7 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
         const w = await WordRepo.get(editingId);
         if (w) {
           setPhotoUri(w.photoUri);
+          setVideoUri(w.videoUri);
           setEmoji(w.emoji);
           setWordText(w.word);
           setCategoryId(w.categoryId);
@@ -79,43 +88,104 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
     })();
   }, [activeProfile, editingId, preselectedCategoryId]);
 
-  // ---- photo ----
-  // Choose an existing photo from the device's library.
-  const pickPhoto = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert("Permission needed", "Please allow photo access to choose a picture.");
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.7,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (!res.canceled && res.assets[0]) {
-      const stored = await persistPhoto(res.assets[0].uri);
-      setPhotoUri(stored);
+  // ---- picture / video ----
+  // A word shows ONE visual: either a photo or a short video (or the emoji
+  // fallback). Selecting new media replaces whatever was there, and we clean up
+  // the file we're dropping so we don't leave orphaned media on the device.
+  const applyPickedAsset = async (asset: ImagePicker.ImagePickerAsset) => {
+    const isVideo = asset.type === "video";
+    if (isVideo) {
+      const stored = await persistVideo(asset.uri);
+      // Generate a still poster from the clip's first frame so grids and the
+      // animation-disabled fallback show a real thumbnail (not just the emoji).
+      // Best-effort: a null poster simply falls back to the emoji.
+      const poster = await generateVideoPoster(stored);
+      if (photoUri && photoUri !== poster) await deleteMedia(photoUri);
+      setPhotoUri(poster);
+      setVideoUri((prev) => {
+        if (prev && prev !== stored) deleteMedia(prev);
+        return stored;
+      });
+    } else {
+      const stored = await persistPhoto(asset.uri);
+      if (videoUri) await deleteMedia(videoUri);
+      setVideoUri(null);
+      setPhotoUri((prev) => {
+        if (prev && prev !== stored) deleteMedia(prev);
+        return stored;
+      });
     }
   };
 
-  // Open the camera and take a new photo right now.
-  const takePhoto = async () => {
+  // Keep the video short and light: at most 6s, matching the "living picture"
+  // guidance (silent, looping clip rather than a movie).
+  const VIDEO_MAX_SECONDS = 6;
+
+  // Choose an existing photo or video from the device's library.
+  const pickMedia = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Please allow photo access to choose a photo or video.");
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images", "videos"],
+      quality: 0.7,
+      allowsEditing: true,
+      videoMaxDuration: VIDEO_MAX_SECONDS,
+    });
+    if (!res.canceled && res.assets[0]) {
+      await applyPickedAsset(res.assets[0]);
+    }
+  };
+
+  // Open the camera to take a new photo or record a short video right now.
+  const takeMedia = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("Permission needed", "Please allow camera access to take a picture.");
+      Alert.alert("Permission needed", "Please allow camera access to take a photo or video.");
       return;
     }
     const res = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["images"],
+      mediaTypes: ["images", "videos"],
       quality: 0.7,
       allowsEditing: true,
-      aspect: [1, 1],
+      videoMaxDuration: VIDEO_MAX_SECONDS,
     });
     if (!res.canceled && res.assets[0]) {
-      const stored = await persistPhoto(res.assets[0].uri);
-      setPhotoUri(stored);
+      await applyPickedAsset(res.assets[0]);
     }
+  };
+
+  // Muted, looping preview of the selected clip (mirrors the child experience).
+  const previewPlayer = useVideoPlayer(null, (player) => {
+    player.muted = true;
+    player.loop = true;
+  });
+  useEffect(() => {
+    if (videoUri) {
+      try {
+        previewPlayer.muted = true;
+        previewPlayer.loop = true;
+        previewPlayer.replace({ uri: videoUri });
+        previewPlayer.play();
+      } catch {
+        // preview is non-essential
+      }
+    } else {
+      try {
+        previewPlayer.pause();
+      } catch {
+        // ignore
+      }
+    }
+  }, [videoUri, previewPlayer]);
+
+  const clearMedia = async () => {
+    await deleteMedia(photoUri);
+    await deleteMedia(videoUri);
+    setPhotoUri(null);
+    setVideoUri(null);
   };
 
   // ---- audio (expo-audio) ----
@@ -219,6 +289,7 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
             setSaving(true);
             try {
               await deleteMedia(photoUri);
+              await deleteMedia(videoUri);
               await deleteMedia(audioUri);
               await WordRepo.delete(editingId);
               navigation.goBack();
@@ -242,6 +313,7 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
           word: wordText.trim(),
           emoji,
           photoUri,
+          videoUri,
           audioUri,
           categoryId,
           isFeatured,
@@ -253,6 +325,7 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
           word: wordText.trim(),
           emoji,
           photoUri,
+          videoUri,
           audioUri,
           isFeatured,
         });
@@ -261,6 +334,7 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
       if (addAnother && !editingId) {
         // reset for next entry
         setPhotoUri(null);
+        setVideoUri(null);
         setEmoji("🔤");
         setWordText("");
         setIsFeatured(false);
@@ -305,40 +379,49 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
       >
         {step === 0 && (
           <>
-            <Text style={styles.stepTitle}>Add a picture</Text>
+            <Text style={styles.stepTitle}>Add a picture or video</Text>
             <Text style={styles.stepDesc}>
-              Choose a photo from the library or take one with the camera. Or use an emoji for now.
+              Choose a photo or short video from the library, or capture one with the camera. A
+              video plays silently and loops. Or use an emoji for now.
             </Text>
             <View style={styles.uploadArea}>
-              {photoUri ? (
+              {videoUri ? (
+                <VideoView
+                  player={previewPlayer}
+                  style={styles.uploadPreview}
+                  contentFit="cover"
+                  nativeControls={false}
+                  allowsPictureInPicture={false}
+                />
+              ) : photoUri ? (
                 <Image source={{ uri: photoUri }} style={styles.uploadPreview} />
               ) : (
                 <>
                   <Text style={{ fontSize: 48 }}>{emoji}</Text>
-                  <Text style={styles.uploadHint}>No photo yet</Text>
+                  <Text style={styles.uploadHint}>No photo or video yet</Text>
                 </>
               )}
             </View>
 
-            {/* Two ways to add a photo */}
+            {/* Two ways to add a photo or video */}
             <View style={styles.photoBtnRow}>
               <Pressable
                 style={styles.photoBtn}
-                onPress={pickPhoto}
+                onPress={pickMedia}
                 accessibilityRole="button"
-                accessibilityLabel="Choose a photo from the library"
+                accessibilityLabel="Choose a photo or video from the library"
               >
                 <Text style={styles.photoBtnIcon}>🖼️</Text>
-                <Text style={styles.photoBtnLabel}>Choose Photo</Text>
+                <Text style={styles.photoBtnLabel}>Choose Photo/Video</Text>
               </Pressable>
               <Pressable
                 style={styles.photoBtn}
-                onPress={takePhoto}
+                onPress={takeMedia}
                 accessibilityRole="button"
-                accessibilityLabel="Open camera and take a picture"
+                accessibilityLabel="Open camera to take a photo or video"
               >
                 <Text style={styles.photoBtnIcon}>📷</Text>
-                <Text style={styles.photoBtnLabel}>Take Photo</Text>
+                <Text style={styles.photoBtnLabel}>Take Photo/Video</Text>
               </Pressable>
             </View>
 
@@ -350,9 +433,11 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
               placeholder="🔤"
               placeholderTextColor="#666"
             />
-            {photoUri && (
-              <Pressable onPress={async () => { await deleteMedia(photoUri); setPhotoUri(null); }}>
-                <Text style={styles.linkDanger}>Remove photo</Text>
+            {(photoUri || videoUri) && (
+              <Pressable onPress={clearMedia}>
+                <Text style={styles.linkDanger}>
+                  {videoUri ? "Remove video" : "Remove photo"}
+                </Text>
               </Pressable>
             )}
           </>
@@ -485,7 +570,15 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
           <>
             <Text style={styles.stepTitle}>Review</Text>
             <View style={styles.reviewCard}>
-              {photoUri ? (
+              {videoUri ? (
+                <VideoView
+                  player={previewPlayer}
+                  style={styles.reviewPhoto}
+                  contentFit="cover"
+                  nativeControls={false}
+                  allowsPictureInPicture={false}
+                />
+              ) : photoUri ? (
                 <Image source={{ uri: photoUri }} style={styles.reviewPhoto} />
               ) : (
                 <Text style={{ fontSize: 56 }}>{emoji}</Text>
@@ -493,6 +586,9 @@ export function WordWizardScreen({ route, navigation }: ScreenProps<"WordWizard"
               <Text style={styles.reviewWord}>{wordText || "(no word)"}</Text>
               <Text style={styles.reviewMeta}>
                 {categories.find((c) => c.id === categoryId)?.name ?? "No category"}
+              </Text>
+              <Text style={styles.reviewMeta}>
+                {videoUri ? "🎬 Video" : photoUri ? "🖼️ Photo" : "🔤 Emoji"}
               </Text>
               <Text style={styles.reviewMeta}>
                 {audioUri ? "🎙️ Recorded audio" : "🔊 Text-to-speech"}
@@ -608,7 +704,7 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: CG.card,
   },
-  uploadPreview: { width: "100%", height: "100%", borderRadius: 18 },
+  uploadPreview: { width: "100%", height: "100%", borderRadius: 18, overflow: "hidden" },
   uploadHint: { color: "rgba(255,255,255,0.6)", fontWeight: "700" },
   photoBtnRow: { flexDirection: "row", gap: 12, marginTop: 14 },
   photoBtn: {
@@ -737,7 +833,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  reviewPhoto: { width: 120, height: 120, borderRadius: 18 },
+  reviewPhoto: { width: 120, height: 120, borderRadius: 18, overflow: "hidden" },
   reviewWord: { fontSize: 24, fontWeight: "900", color: "#FFF", marginTop: 8 },
   reviewMeta: { fontSize: 14, fontWeight: "600", color: "rgba(255,255,255,0.6)" },
   featuredRow: {

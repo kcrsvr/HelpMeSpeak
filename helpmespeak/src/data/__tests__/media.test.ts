@@ -1,5 +1,14 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { persistPhoto, persistAudio, deleteMedia } from "../media";
+import * as VideoThumbnails from "expo-video-thumbnails";
+import {
+  persistPhoto,
+  persistVideo,
+  persistAudio,
+  generateVideoPoster,
+  deleteMedia,
+} from "../media";
+
+const thumbs = VideoThumbnails as unknown as { getThumbnailAsync: jest.Mock };
 
 const fs = FileSystem as unknown as {
   getInfoAsync: jest.Mock;
@@ -51,6 +60,56 @@ describe("media persistence", () => {
       fs.getInfoAsync.mockResolvedValue({ exists: true });
       await persistPhoto("file:///tmp/pic.png");
       expect(fs.makeDirectoryAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("persistVideo", () => {
+    it("copies the temp video into the media dir and returns a video_ path", async () => {
+      const dest = await persistVideo("file:///tmp/clip.mp4");
+      expect(fs.copyAsync).toHaveBeenCalledTimes(1);
+      const arg = fs.copyAsync.mock.calls[0][0];
+      expect(arg.from).toBe("file:///tmp/clip.mp4");
+      expect(arg.to).toBe(dest);
+      expect(dest.startsWith(`${MEDIA_DIR}video_`)).toBe(true);
+      expect(dest.endsWith(".mp4")).toBe(true);
+    });
+
+    it("defaults to a .mp4 extension when the source has none", async () => {
+      const dest = await persistVideo("file:///tmp/noext");
+      expect(dest.endsWith(".mp4")).toBe(true);
+    });
+
+    it("preserves a .mov extension from the source", async () => {
+      const dest = await persistVideo("file:///tmp/clip.mov");
+      expect(dest.endsWith(".mov")).toBe(true);
+    });
+  });
+
+  describe("generateVideoPoster", () => {
+    it("extracts an early frame and persists it as a photo", async () => {
+      thumbs.getThumbnailAsync.mockResolvedValueOnce({
+        uri: "file:///tmp/thumb.jpg",
+        width: 720,
+        height: 720,
+      });
+      const poster = await generateVideoPoster(`${MEDIA_DIR}video_abc.mp4`);
+      // grabs an early frame (skips a leading black frame)
+      const [, opts] = thumbs.getThumbnailAsync.mock.calls[0];
+      expect(opts.time).toBeGreaterThan(0);
+      // the extracted frame is copied into permanent storage as a photo
+      expect(fs.copyAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ from: "file:///tmp/thumb.jpg" })
+      );
+      expect(poster).not.toBeNull();
+      expect(poster!.startsWith(`${MEDIA_DIR}photo_`)).toBe(true);
+      expect(poster!.endsWith(".jpg")).toBe(true);
+    });
+
+    it("returns null (best-effort) when thumbnail generation fails", async () => {
+      thumbs.getThumbnailAsync.mockRejectedValueOnce(new Error("no frame"));
+      const poster = await generateVideoPoster(`${MEDIA_DIR}video_x.mp4`);
+      expect(poster).toBeNull();
+      expect(fs.copyAsync).not.toHaveBeenCalled();
     });
   });
 

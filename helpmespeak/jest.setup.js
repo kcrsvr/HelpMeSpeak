@@ -18,6 +18,15 @@ jest.mock("expo-file-system/legacy", () => ({
   deleteAsync: jest.fn(async () => undefined),
 }));
 
+// --- expo-video-thumbnails ---
+jest.mock("expo-video-thumbnails", () => ({
+  getThumbnailAsync: jest.fn(async () => ({
+    uri: "file:///tmp/thumb.jpg",
+    width: 720,
+    height: 720,
+  })),
+}));
+
 // --- expo-speech ---
 jest.mock("expo-speech", () => ({
   speak: jest.fn((_text, opts) => {

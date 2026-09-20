@@ -14,7 +14,8 @@ import { voiceClip } from "../assets/voice";
 
 let currentPlayer: AudioPlayer | null = null;
 
-async function stopCurrent(): Promise<void> {
+/** Tear down the active recorded/clip audio player, if any. Does NOT touch TTS. */
+function stopPlayer(): void {
   if (currentPlayer) {
     try {
       currentPlayer.remove();
@@ -23,6 +24,10 @@ async function stopCurrent(): Promise<void> {
     }
     currentPlayer = null;
   }
+}
+
+async function stopCurrent(): Promise<void> {
+  stopPlayer();
   try {
     Speech.stop();
   } catch {
@@ -44,6 +49,11 @@ async function stopCurrent(): Promise<void> {
 // A high pitch shifts an adult female voice toward a young-child timbre.
 const CHILD_PITCH = 1.7;
 const CHILD_RATE = 0.9;
+
+// After the whole word is spoken via TTS, wait this long before returning so
+// the TTS engine has fully released the utterance. Prevents the first spelled
+// letter from overlapping the word's audio tail (the clipped/rushed "H").
+const WORD_TO_SPELLING_SETTLE_MS = 250;
 
 let childVoiceId: string | null = null;
 let voiceResolved = false;
@@ -91,6 +101,18 @@ async function resolveChildVoice(): Promise<void> {
   })();
 
   return voiceResolving;
+}
+
+/**
+ * Warm up TTS ahead of the spelling animation. The FIRST call to
+ * `getAvailableVoicesAsync()` / the first TTS utterance on iOS carries a
+ * one-time latency, which delayed the very first spelled letter's audio and
+ * pushed it out of sync with its highlight (only on the first-ever word; by
+ * "Again" the engine is already warm). Call this when a word screen mounts so
+ * the voice is resolved before Phase 3 starts. Safe to call repeatedly.
+ */
+export async function primeSpeech(): Promise<void> {
+  await resolveChildVoice();
 }
 
 /** Shared speech options that give the young-girl-ish voice. */
@@ -176,7 +198,12 @@ export async function playWord(opts: {
         setTimeout(finish, 8000);
       });
 
-      await stopCurrent();
+      // The recorded clip finished on its own. Only release the audio PLAYER —
+      // do NOT call Speech.stop() here. There is no TTS running after a recorded
+      // clip, and an async Speech.stop() teardown racing the first spelled
+      // letter's Speech.speak() was clipping the start of that letter (the
+      // rushed/clipped "H" in "HOME"). The spelled letters own TTS from here.
+      stopPlayer();
       return;
     } catch {
       // fall through to voice pack / TTS
@@ -185,7 +212,9 @@ export async function playWord(opts: {
 
   // Next priority: a bundled child-voice-pack clip for this word.
   if (await playPackClip(opts.word, true)) {
-    await stopCurrent();
+    // Same reasoning as the recorded-clip branch: release the player only, so a
+    // pending Speech.stop() can't clip the first spelled letter that follows.
+    stopPlayer();
     return;
   }
 
@@ -200,6 +229,17 @@ export async function playWord(opts: {
         onError: () => resolve(),
       });
     });
+    // Ensure the engine is fully idle before the caller starts spelling. On iOS
+    // `onDone` can fire while the utterance is still tearing down; without this
+    // the first spelled letter (e.g. "H" in "HOME") overlaps the tail of the
+    // word and gets clipped/rushed. A stop + short settle hands the engine over
+    // cleanly so the first letter behaves like every other letter.
+    try {
+      Speech.stop();
+    } catch {
+      // ignore
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, WORD_TO_SPELLING_SETTLE_MS));
   }
 }
 
@@ -229,7 +269,12 @@ export function speakLetter(letter: string, ttsEnabled: boolean): void {
   if (!ttsEnabled) return;
   resolveChildVoice();
   try {
-    Speech.stop();
+    // NOTE: we intentionally do NOT Speech.stop() here. Some letter names take
+    // noticeably longer to pronounce than others — e.g. "H" is "aitch", "W" is
+    // "double-u" — and hard-stopping the previous utterance when the next
+    // letter begins was clipping those longer names (the reported clipped "H"
+    // in "HOME"). Letting expo-speech queue the letters means each one is spoken
+    // in full; the highlight still advances on the caller's per-letter timer.
     // Speak the lowercase letter — passing an uppercase character makes some
     // TTS voices announce "capital A" instead of just the letter name.
     Speech.speak(ch.toLowerCase(), childVoiceOptions(0.85));
