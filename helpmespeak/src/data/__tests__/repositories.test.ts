@@ -27,11 +27,12 @@ let SettingsRepo: typeof SettingsRepoT;
 let ProfileRepo: typeof ProfileRepoT;
 let CategoryRepo: typeof CategoryRepoT;
 let WordRepo: typeof WordRepoT;
+// Exposed so tests can re-run schema init + migrations (they are idempotent).
+let initSchema!: () => Promise<void>;
 
 beforeEach(async () => {
   mockFake = createFakeDb();
   jest.resetModules();
-  let initSchema!: () => Promise<void>;
   jest.isolateModules(() => {
     initSchema = require("../db").initSchema;
     const repos = require("../repositories");
@@ -340,6 +341,31 @@ describe("WordRepo", () => {
     } finally {
       nowSpy.mockRestore();
     }
+  });
+
+  it("migrates legacy digit number words to spelled-out names, without touching edits", async () => {
+    const p = await makeProfile();
+    const numbers = (await CategoryRepo.listForProfile(p.id)).find((c) => c.name === "Numbers")!;
+    expect(numbers).toBeTruthy();
+
+    // Simulate a profile seeded by an OLDER app version: rewrite two built-in
+    // number words back to their legacy digit form, plus a caregiver-renamed one.
+    const raw = mockFake.__raw;
+    const eight = (await WordRepo.listForCategory(numbers.id)).find((w) => w.word === "Eight")!;
+    const ten = (await WordRepo.listForCategory(numbers.id)).find((w) => w.word === "Ten")!;
+    const nine = (await WordRepo.listForCategory(numbers.id)).find((w) => w.word === "Nine")!;
+    raw.prepare("UPDATE words SET word = '8' WHERE id = ?").run(eight.id);
+    raw.prepare("UPDATE words SET word = '10' WHERE id = ?").run(ten.id);
+    // A caregiver renamed this one — the migration must leave it alone.
+    raw.prepare("UPDATE words SET word = 'Niner' WHERE id = ?").run(nine.id);
+
+    // Re-run schema init → migrations (idempotent).
+    await initSchema();
+
+    expect((await WordRepo.get(eight.id))?.word).toBe("Eight");
+    expect((await WordRepo.get(ten.id))?.word).toBe("Ten");
+    // Caregiver's custom label is preserved (not a recognized legacy digit).
+    expect((await WordRepo.get(nine.id))?.word).toBe("Niner");
   });
 
   it("trims the word label on create", async () => {

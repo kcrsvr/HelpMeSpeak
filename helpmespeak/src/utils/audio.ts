@@ -221,8 +221,12 @@ export async function playWord(opts: {
   // Last resort: on-device TTS.
   if (opts.ttsEnabled) {
     await resolveChildVoice();
+    // A single-character word (e.g. the "Letters" category "A".."Z") must be
+    // lowercased or some voices announce it as "capital A". Multi-character
+    // words keep their original casing for natural pronunciation.
+    const spoken = opts.word.trim().length === 1 ? opts.word.toLowerCase() : opts.word;
     await new Promise<void>((resolve) => {
-      Speech.speak(opts.word, {
+      Speech.speak(spoken, {
         ...childVoiceOptions(CHILD_RATE),
         onDone: () => resolve(),
         onStopped: () => resolve(),
